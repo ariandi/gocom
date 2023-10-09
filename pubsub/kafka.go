@@ -92,6 +92,27 @@ func (o *KafkaPubSubClient) Subscribe(subject string, eventHandler PubSubEventHa
 	//	no := 10000000
 	//	sub.SetPendingLimits(no, no*1024)
 	//}
+	topic := "test-kafka"
+	err := o.consumer.SubscribeTopics([]string{topic}, nil)
+	if err != nil {
+		fmt.Printf("Error subscribing to topic: %v\n", err)
+		defer func() {
+			err := recover()
+
+			if err != nil {
+				fmt.Println("=====> SYSTEM PANIC WHEN PROCESS NATS MSG :", subject, " : ", err)
+			}
+		}()
+	}
+
+	ev, err := o.consumer.ReadMessage(100 * time.Millisecond)
+	if err != nil {
+		// Errors are informational and automatically handled by the consumer
+		fmt.Printf("Error read topic message: %v\n", err)
+	}
+	eventHandler(subject, string(ev.Value))
+	//fmt.Printf("Consumed event from topic %s: key = %-10s value = %s\n",
+	//	*ev.TopicPartition.Topic, string(ev.Key), string(ev.Value))
 }
 
 func (o *KafkaPubSubClient) RequestSubscribe(subject string, eventHandler PubSubReqEventHandler) {
@@ -155,6 +176,19 @@ func init() {
 
 		ret.producer, err = kafka.NewProducer(&config)
 		if err != nil {
+			return nil, err
+		}
+
+		configConsumer := kafka.ConfigMap{
+			"bootstrap.servers": connString, // Replace with your Kafka broker(s)
+			"group.id":          "gocon-group",
+			"auto.offset.reset": "earliest",
+		}
+
+		// Create a Kafka consumer instance
+		ret.consumer, err = kafka.NewConsumer(&configConsumer)
+		if err != nil {
+			fmt.Printf("Error creating Kafka consumer: %v\n", err)
 			return nil, err
 		}
 
