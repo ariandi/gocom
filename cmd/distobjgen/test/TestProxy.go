@@ -1,10 +1,10 @@
 package main
 
-import "github.com/adlindo/gocom/distobj"
+import "github.com/ariandi/gocom/distobj"
 
 type TestProxy struct {
 	className string
-	prefix string
+	prefix    string
 }
 
 var __TestProxyMap map[string]*TestProxy = map[string]*TestProxy{}
@@ -29,7 +29,6 @@ func GetTestProxy(prefix ...string) *TestProxy {
 	return ret
 }
 
-					
 func (o *TestProxy) TestString(a string, b string) string {
 
 	ret, err := distobj.Invoke(o.prefix, o.className, "TestString", a, b)
@@ -38,12 +37,11 @@ func (o *TestProxy) TestString(a string, b string) string {
 		return ""
 	}
 
-	
 	ret0 := distobj.ToStr(ret[0])
 
 	return ret0
 }
-						
+
 func (o *TestProxy) TestInt(a int, b int) int {
 
 	ret, err := distobj.Invoke(o.prefix, o.className, "TestInt", a, b)
@@ -52,12 +50,11 @@ func (o *TestProxy) TestInt(a int, b int) int {
 		return 0
 	}
 
-	
 	ret0 := distobj.ToInt(ret[0])
 
 	return ret0
 }
-						
+
 func (o *TestProxy) TestError() error {
 
 	ret, err := distobj.Invoke(o.prefix, o.className, "TestError")
@@ -66,12 +63,11 @@ func (o *TestProxy) TestError() error {
 		return err
 	}
 
-	
 	ret0 := distobj.ToErr(ret[0])
 
 	return ret0
 }
-						
+
 func (o *TestProxy) TestList() []string {
 
 	ret, err := distobj.Invoke(o.prefix, o.className, "TestList")
@@ -80,12 +76,11 @@ func (o *TestProxy) TestList() []string {
 		return nil
 	}
 
-	
 	ret0 := distobj.ToArr(ret[0], "string").([]string)
 
 	return ret0
 }
-						
+
 func (o *TestProxy) TestIntList() []int {
 
 	ret, err := distobj.Invoke(o.prefix, o.className, "TestIntList")
@@ -94,12 +89,11 @@ func (o *TestProxy) TestIntList() []int {
 		return nil
 	}
 
-	
 	ret0 := distobj.ToArr(ret[0], "int").([]int)
 
 	return ret0
 }
-						
+
 func (o *TestProxy) TestInterface(a interface{}) interface{} {
 
 	ret, err := distobj.Invoke(o.prefix, o.className, "TestInterface", a)
@@ -108,12 +102,11 @@ func (o *TestProxy) TestInterface(a interface{}) interface{} {
 		return nil
 	}
 
-	
 	ret0 := ret[0]
 
 	return ret0
 }
-						
+
 func (o *TestProxy) TestInterfaceList(a []interface{}) []interface{} {
 
 	ret, err := distobj.Invoke(o.prefix, o.className, "TestInterfaceList", a)
@@ -122,12 +115,11 @@ func (o *TestProxy) TestInterfaceList(a []interface{}) []interface{} {
 		return nil
 	}
 
-	
 	ret0 := distobj.ToArr(ret[0], "interface{}").([]interface{})
 
 	return ret0
 }
-						
+
 func (o *TestProxy) TestMap() map[string]string {
 
 	ret, err := distobj.Invoke(o.prefix, o.className, "TestMap")
@@ -136,9 +128,7 @@ func (o *TestProxy) TestMap() map[string]string {
 		return nil
 	}
 
-	
 	ret0 := distobj.ToMap(ret[0], "string", "string").(map[string]string)
 
 	return ret0
 }
-						

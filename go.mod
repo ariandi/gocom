@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/adjust/rmq/v5 v5.1.1
-	github.com/adlindo/gocom v0.1.19
 	github.com/ansrivas/fiberprometheus/v2 v2.6.0
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/gofiber/fiber/v2 v2.42.0

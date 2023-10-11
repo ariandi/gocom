@@ -3,7 +3,7 @@ package gocom
 import (
 	"sync"
 
-	"github.com/adlindo/gocom/config"
+	"github.com/ariandi/gocom/config"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

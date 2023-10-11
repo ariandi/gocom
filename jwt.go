@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/adlindo/gocom/secret"
+	"github.com/ariandi/gocom/secret"
 	"github.com/golang-jwt/jwt/v4"
 )
 

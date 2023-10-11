@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/adlindo/gocom"
-	"github.com/adlindo/gocom/distobj"
+	"github.com/ariandi/gocom"
+	"github.com/ariandi/gocom/distobj"
 )
 
 type TestDist interface {

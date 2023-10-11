@@ -1,9 +1,9 @@
 package gocom
 
 import (
-	"github.com/adlindo/gocom/keyval"
-	"github.com/adlindo/gocom/pubsub"
-	"github.com/adlindo/gocom/queue"
+	"github.com/ariandi/gocom/keyval"
+	"github.com/ariandi/gocom/pubsub"
+	"github.com/ariandi/gocom/queue"
 )
 
 func KeyVal(name ...string) keyval.KeyValClient {

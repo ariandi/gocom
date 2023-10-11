@@ -104,7 +104,7 @@ func main() {
 
 					strOut := `package ` + pkg.Name + `
 
-import "github.com/adlindo/gocom/distobj"
+import "github.com/ariandi/gocom/distobj"
 
 type ` + proxyName + ` struct {
 	className string
