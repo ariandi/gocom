@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/adlindo/gocom"
+	"github.com/ariandi/gocom"
 )
 
 func main() {

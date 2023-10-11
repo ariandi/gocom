@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/adlindo/gocom"
+	"github.com/ariandi/gocom"
 	"github.com/jinzhu/copier"
 )
 

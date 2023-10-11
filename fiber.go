@@ -5,8 +5,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/adlindo/gocom/config"
 	"github.com/ansrivas/fiberprometheus/v2"
+	"github.com/ariandi/gocom/config"
 	"github.com/gofiber/fiber/v2"
 )
 

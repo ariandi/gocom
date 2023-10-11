@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/adlindo/gocom/pubsub"
+	"github.com/ariandi/gocom/pubsub"
 )
 
 type DistObjReqMsg struct {
@@ -126,7 +126,7 @@ func proxy(prefix, className string, impl interface{}, method reflect.Method) {
 					for _, elm := range retVal {
 
 						if elm.Interface() != nil {
-							
+
 							res.Result = append(res.Result, elm.Interface())
 						} else {
 							res.Result = append(res.Result, elm.Interface())
