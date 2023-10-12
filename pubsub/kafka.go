@@ -79,9 +79,7 @@ func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHa
 			return
 		}
 
-		defer c.Close()
-
-		o.subscribeTopic(c, subject, eventHandler)
+		go o.subscribeTopic(c, subject, eventHandler)
 		o.topicQueueList[subject] = true
 	}
 }
@@ -133,6 +131,7 @@ func (o *KafkaPubSubClient) consumeTopic(topic string, eventHandler PubSubEventH
 
 	defer c.Close()
 
+	//o.checkTopic(topic)
 	o.subscribeTopic(c, topic, eventHandler)
 }
 
