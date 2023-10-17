@@ -1,10 +1,11 @@
-module github.com/adlindo/gocom
+module github.com/ariandi/gocom
 
 go 1.19
 
 require (
 	github.com/adjust/rmq/v5 v5.1.1
 	github.com/ansrivas/fiberprometheus/v2 v2.6.0
+	github.com/ariandi/gocom v0.0.0-20231011094622-a06c91f7593d
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/gofiber/fiber/v2 v2.42.0
 	github.com/golang-jwt/jwt/v4 v4.5.0
