@@ -1,4 +1,4 @@
-module github.com/ariandi/gocom
+module github.com/adlindo/gocom
 
 go 1.19
 
@@ -9,7 +9,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.42.0
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/jinzhu/copier v0.3.5
-	github.com/nats-io/nats.go v1.29.0
+	github.com/nats-io/nats.go v1.30.2
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/spf13/viper v1.15.0
@@ -37,7 +37,7 @@ require (
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/nats-io/nats-server/v2 v2.10.1 // indirect
+	github.com/nats-io/nats-server/v2 v2.10.2 // indirect
 	github.com/nats-io/nkeys v0.4.5 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/philhofer/fwd v1.1.1 // indirect
