@@ -48,7 +48,7 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 		Value: msgByte,
 	}, nil)
 
-	o.producer.Flush(5000)
+	//o.producer.Flush(5000)
 
 	return err
 }
