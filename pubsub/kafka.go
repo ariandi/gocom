@@ -60,6 +60,7 @@ func (o *KafkaPubSubClient) Request(subject string, msg interface{}, timeOut ...
 func (o *KafkaPubSubClient) Subscribe(subject string, eventHandler PubSubEventHandler) {
 	// Create a Kafka consumer instance
 	if !o.topicConsumeList[subject] {
+		o.checkTopic(subject)
 		fmt.Printf("New Consumer '%s' created.\n", subject)
 		go o.consumeTopic(subject, eventHandler)
 		o.topicConsumeList[subject] = true
@@ -71,6 +72,7 @@ func (o *KafkaPubSubClient) RequestSubscribe(subject string, eventHandler PubSub
 
 func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHandler PubSubEventHandler) {
 	if !o.topicQueueList[subject] {
+		o.checkTopic(subject)
 		configConsumer := &kafka.ConfigMap{
 			"bootstrap.servers": o.connString,
 			"group.id":          queue,
