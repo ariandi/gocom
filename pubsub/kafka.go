@@ -190,6 +190,7 @@ func init() {
 
 		var err error
 
+		// add tagging
 		inputString := connString
 		delimiter := ";"
 		delimiter2 := "="
