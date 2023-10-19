@@ -211,9 +211,15 @@ func init() {
 		ret.configMap = &kafka.ConfigMap{
 			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
 			"security.protocol": ret.connStringList["security.protocol"],
-			"sasl.mechanism":    ret.connStringList["sasl.mechanism"],
-			"sasl.username":     ret.connStringList["sasl.username"],
-			"sasl.password":     ret.connStringList["sasl.password"],
+			//"sasl.mechanism":    ret.connStringList["sasl.mechanism"],
+			//"sasl.username":     ret.connStringList["sasl.username"],
+			//"sasl.password":     ret.connStringList["sasl.password"],
+		}
+
+		if ret.connStringList["security.protocol"] != "PLAINTEXT" {
+			ret.configMap.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
+			ret.configMap.SetKey("sasl.username", ret.connStringList["sasl.username"])
+			ret.configMap.SetKey("sasl.password", ret.connStringList["sasl.password"])
 		}
 
 		ret.producer, err = kafka.NewProducer(ret.configMap)
@@ -225,11 +231,17 @@ func init() {
 		ret.configConsumer = &kafka.ConfigMap{
 			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
 			"security.protocol": ret.connStringList["security.protocol"],
-			"sasl.mechanism":    ret.connStringList["sasl.mechanism"],
-			"sasl.username":     ret.connStringList["sasl.username"],
-			"sasl.password":     ret.connStringList["sasl.password"],
+			//"sasl.mechanism":    ret.connStringList["sasl.mechanism"],
+			//"sasl.username":     ret.connStringList["sasl.username"],
+			//"sasl.password":     ret.connStringList["sasl.password"],
 			"group.id":          "my-consumer-group",
 			"auto.offset.reset": "earliest",
+		}
+
+		if ret.connStringList["security.protocol"] != "PLAINTEXT" {
+			ret.configConsumer.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
+			ret.configConsumer.SetKey("sasl.username", ret.connStringList["sasl.username"])
+			ret.configConsumer.SetKey("sasl.password", ret.connStringList["sasl.password"])
 		}
 
 		mapping := make(map[string]bool)
