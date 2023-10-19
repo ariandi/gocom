@@ -7,6 +7,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -18,6 +19,7 @@ type KafkaPubSubClient struct {
 	topicList        map[string]bool
 	topicConsumeList map[string]bool
 	topicQueueList   map[string]bool
+	connStringList   map[string]string
 	connString       string
 }
 
@@ -77,6 +79,12 @@ func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHa
 			"bootstrap.servers": o.connString,
 			"group.id":          queue,
 			"auto.offset.reset": "earliest",
+		}
+
+		if o.connStringList["security.protocol"] != "PLAINTEXT" {
+			configConsumer.SetKey("sasl.mechanism", o.connStringList["sasl.mechanism"])
+			configConsumer.SetKey("sasl.username", o.connStringList["sasl.username"])
+			configConsumer.SetKey("sasl.password", o.connStringList["sasl.password"])
 		}
 
 		c, err := kafka.NewConsumer(configConsumer)
@@ -187,8 +195,35 @@ func init() {
 		ret := &KafkaPubSubClient{}
 
 		var err error
-		ret.connString = connString
-		ret.configMap = &kafka.ConfigMap{"bootstrap.servers": connString}
+
+		// add tagging
+		inputString := connString
+		delimiter := ";"
+		delimiter2 := "="
+		mappingString := make(map[string]string)
+		ret.connStringList = mappingString
+
+		// Use strings.Split to split the string
+		substrings := strings.Split(inputString, delimiter)
+
+		// Print the resulting substrings
+		for _, substring := range substrings {
+			fmt.Println(substring)
+			substrings2 := strings.Split(substring, delimiter2)
+			ret.connStringList[substrings2[0]] = substrings2[1]
+		}
+
+		ret.connString = ret.connStringList["bootstrap.servers"]
+		ret.configMap = &kafka.ConfigMap{
+			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
+			"security.protocol": ret.connStringList["security.protocol"],
+		}
+
+		if ret.connStringList["security.protocol"] != "PLAINTEXT" {
+			ret.configMap.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
+			ret.configMap.SetKey("sasl.username", ret.connStringList["sasl.username"])
+			ret.configMap.SetKey("sasl.password", ret.connStringList["sasl.password"])
+		}
 
 		ret.producer, err = kafka.NewProducer(ret.configMap)
 		if err != nil {
@@ -197,9 +232,16 @@ func init() {
 
 		//// for consumer group id should dynamic by aws configMap
 		ret.configConsumer = &kafka.ConfigMap{
-			"bootstrap.servers": connString,
+			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
+			"security.protocol": ret.connStringList["security.protocol"],
 			"group.id":          "my-consumer-group",
 			"auto.offset.reset": "earliest",
+		}
+
+		if ret.connStringList["security.protocol"] != "PLAINTEXT" {
+			ret.configConsumer.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
+			ret.configConsumer.SetKey("sasl.username", ret.connStringList["sasl.username"])
+			ret.configConsumer.SetKey("sasl.password", ret.connStringList["sasl.password"])
 		}
 
 		mapping := make(map[string]bool)
