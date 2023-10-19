@@ -7,6 +7,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -18,6 +19,7 @@ type KafkaPubSubClient struct {
 	topicList        map[string]bool
 	topicConsumeList map[string]bool
 	topicQueueList   map[string]bool
+	connStringList   map[string]string
 	connString       string
 }
 
@@ -48,7 +50,7 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 		Value: msgByte,
 	}, nil)
 
-	//o.producer.Flush(5000)
+	// o.producer.Flush(5000)
 
 	return err
 }
@@ -187,8 +189,31 @@ func init() {
 		ret := &KafkaPubSubClient{}
 
 		var err error
-		ret.connString = connString
-		ret.configMap = &kafka.ConfigMap{"bootstrap.servers": connString}
+
+		inputString := connString
+		delimiter := ";"
+		delimiter2 := "="
+		mappingString := make(map[string]string)
+		ret.connStringList = mappingString
+
+		// Use strings.Split to split the string
+		substrings := strings.Split(inputString, delimiter)
+
+		// Print the resulting substrings
+		for _, substring := range substrings {
+			fmt.Println(substring)
+			substrings2 := strings.Split(substring, delimiter2)
+			ret.connStringList[substrings2[0]] = substrings2[1]
+		}
+
+		ret.connString = ret.connStringList["bootstrap.servers"]
+		ret.configMap = &kafka.ConfigMap{
+			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
+			"security.protocol": ret.connStringList["security.protocol"],
+			"sasl.mechanism":    ret.connStringList["sasl.mechanism"],
+			"sasl.username":     ret.connStringList["sasl.username"],
+			"sasl.password":     ret.connStringList["sasl.password"],
+		}
 
 		ret.producer, err = kafka.NewProducer(ret.configMap)
 		if err != nil {
@@ -197,7 +222,11 @@ func init() {
 
 		//// for consumer group id should dynamic by aws configMap
 		ret.configConsumer = &kafka.ConfigMap{
-			"bootstrap.servers": connString,
+			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
+			"security.protocol": ret.connStringList["security.protocol"],
+			"sasl.mechanism":    ret.connStringList["sasl.mechanism"],
+			"sasl.username":     ret.connStringList["sasl.username"],
+			"sasl.password":     ret.connStringList["sasl.password"],
 			"group.id":          "my-consumer-group",
 			"auto.offset.reset": "earliest",
 		}
