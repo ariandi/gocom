@@ -81,6 +81,12 @@ func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHa
 			"auto.offset.reset": "earliest",
 		}
 
+		if o.connStringList["security.protocol"] != "PLAINTEXT" {
+			configConsumer.SetKey("sasl.mechanism", o.connStringList["sasl.mechanism"])
+			configConsumer.SetKey("sasl.username", o.connStringList["sasl.username"])
+			configConsumer.SetKey("sasl.password", o.connStringList["sasl.password"])
+		}
+
 		c, err := kafka.NewConsumer(configConsumer)
 		if err != nil {
 			fmt.Printf("Error creating queue Kafka consumer: %v\n", err)
@@ -190,6 +196,7 @@ func init() {
 
 		var err error
 
+		// add tagging
 		inputString := connString
 		delimiter := ";"
 		delimiter2 := "="
@@ -210,9 +217,12 @@ func init() {
 		ret.configMap = &kafka.ConfigMap{
 			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
 			"security.protocol": ret.connStringList["security.protocol"],
-			"sasl.mechanism":    ret.connStringList["sasl.mechanism"],
-			"sasl.username":     ret.connStringList["sasl.username"],
-			"sasl.password":     ret.connStringList["sasl.password"],
+		}
+
+		if ret.connStringList["security.protocol"] != "PLAINTEXT" {
+			ret.configMap.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
+			ret.configMap.SetKey("sasl.username", ret.connStringList["sasl.username"])
+			ret.configMap.SetKey("sasl.password", ret.connStringList["sasl.password"])
 		}
 
 		ret.producer, err = kafka.NewProducer(ret.configMap)
@@ -224,11 +234,14 @@ func init() {
 		ret.configConsumer = &kafka.ConfigMap{
 			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
 			"security.protocol": ret.connStringList["security.protocol"],
-			"sasl.mechanism":    ret.connStringList["sasl.mechanism"],
-			"sasl.username":     ret.connStringList["sasl.username"],
-			"sasl.password":     ret.connStringList["sasl.password"],
 			"group.id":          "my-consumer-group",
 			"auto.offset.reset": "earliest",
+		}
+
+		if ret.connStringList["security.protocol"] != "PLAINTEXT" {
+			ret.configConsumer.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
+			ret.configConsumer.SetKey("sasl.username", ret.connStringList["sasl.username"])
+			ret.configConsumer.SetKey("sasl.password", ret.connStringList["sasl.password"])
 		}
 
 		mapping := make(map[string]bool)
