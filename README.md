@@ -27,4 +27,4 @@ in the config.properties file.
     # for env local 
     app.pubsub.default.url=bootstrap.servers=localhost:9092;security.protocol=PLAINTEXT
     # for env dev
-    app.pubsub.default.url=bootstrap.servers=b-1.kafkatelin.nrdazy.c3.kafka.ap-southeast-1.amazonaws.com:9096;security.protocol=SASL_SSL;sasl.mechanism=SCRAM-SHA-512;sasl.username=<username>;sasl.password=<password>
+    app.pubsub.default.url=bootstrap.servers=<host>:<port>;security.protocol=SASL_SSL;sasl.mechanism=SCRAM-SHA-512;sasl.username=<username>;sasl.password=<password>
