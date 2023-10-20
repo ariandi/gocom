@@ -13,7 +13,8 @@ import (
 // FiberContext -------------------------------------------
 
 type FiberContext struct {
-	ctx *fiber.Ctx
+	ctx  *fiber.Ctx
+	data map[string]string
 }
 
 func (o *FiberContext) Status(code int) Context {
@@ -59,12 +60,20 @@ func (o *FiberContext) GetHeader(key string) string {
 
 func (o *FiberContext) Set(key string, value string) {
 
-	o.ctx.Request().Header.Set(key, value)
+	if o.data == nil {
+		o.data = map[string]string{}
+	}
+
+	o.data[key] = value
 }
 
 func (o *FiberContext) Get(key string) string {
 
-	return o.ctx.Get(key)
+	if o.data == nil {
+		o.data = map[string]string{}
+	}
+
+	return o.data[key]
 }
 
 func (o *FiberContext) SendString(data string) error {
