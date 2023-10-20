@@ -76,7 +76,8 @@ func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHa
 	if !o.topicQueueList[subject] {
 		o.checkTopic(subject)
 		configConsumer := &kafka.ConfigMap{
-			"bootstrap.servers": o.connString,
+			"bootstrap.servers": o.connStringList["bootstrap.servers"],
+			"security.protocol": o.connStringList["security.protocol"],
 			"group.id":          queue,
 			"auto.offset.reset": "earliest",
 		}
