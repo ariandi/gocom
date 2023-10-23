@@ -43,7 +43,7 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 	topic := subject
 
 	// check the topic is existed or not // if not exist will create new topic
-	o.checkTopic(topic)
+	// o.checkTopic(topic)
 
 	err = o.producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
@@ -118,7 +118,7 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 	for name := range md.Topics {
 
 		if name == topic {
-			fmt.Printf("Topic already exist in server")
+			fmt.Println("Topic already exist in server :", topic)
 			o.topicList[topic] = true
 			return
 		}
