@@ -192,35 +192,9 @@ func (o *FiberApp) Start() {
 
 	totalAddr := addr + ":" + strconv.Itoa(port)
 
-	// o.app.Use(cors.New())
-
 	prometheus := fiberprometheus.New("service")
 	prometheus.RegisterAt(o.app, "/metrics")
 	o.app.Use(prometheus.Middleware)
-
-	o.app.Use(func(ctx *fiber.Ctx) error {
-
-		var headerList map[string]string = map[string]string{"X-Content-Type-Options": "nosniff",
-			"X-Xss-Protection":                  "1; mode=block",
-			"Strict-Transport-Security":         "max-age=31536000; includeSubdomains; preload",
-			"Cache-Control":                     "no-cache",
-			"Referrer-Policy":                   "same-origin",
-			"X-Frame-Options":                   "SAMEORIGIN",
-			"Access-Control-Allow-Methods":      "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT",
-			"X-Permitted-Cross-Domain-Policies": "none",
-			"Permissions-Policy":                "geolocation=(self)",
-			"Expect-Ct":                         "max-age=31536000, report-uri='https://1106b534557f22696ba5ea23646882e4.report-uri.com/r/d/ct/reportOnly'",
-			"Access-Control-Allow-Headers":      "Authorization,*",
-			"Access-Control-Allow-Origin":       "*",
-			"Content-Security-Policy":           "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com;font-src 'self' https://fonts.gstatic.com;img-src ",
-		}
-
-		for name, val := range headerList {
-			ctx.Append(name, val)
-		}
-
-		return ctx.Next()
-	})
 
 	o.app.Listen(totalAddr)
 }

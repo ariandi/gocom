@@ -103,28 +103,57 @@ func Start() {
 	getApp().Start()
 }
 
+func cors(ctx Context) error {
+
+	var headerList map[string]string = map[string]string{"X-Content-Type-Options": "nosniff",
+		"X-Xss-Protection":                  "1; mode=block",
+		"Strict-Transport-Security":         "max-age=31536000; includeSubdomains; preload",
+		"Cache-Control":                     "no-cache",
+		"Referrer-Policy":                   "same-origin",
+		"X-Frame-Options":                   "SAMEORIGIN",
+		"Access-Control-Allow-Methods":      "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT",
+		"X-Permitted-Cross-Domain-Policies": "none",
+		"Permissions-Policy":                "geolocation=(self)",
+		"Expect-Ct":                         "max-age=31536000, report-uri='https://1106b534557f22696ba5ea23646882e4.report-uri.com/r/d/ct/reportOnly'",
+		"Access-Control-Allow-Headers":      "Authorization,*",
+		"Access-Control-Allow-Origin":       "*",
+		"Content-Security-Policy":           "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com;font-src 'self' https://fonts.gstatic.com;img-src ",
+	}
+
+	for name, val := range headerList {
+		ctx.SetHeader(name, val)
+	}
+
+	return ctx.Next()
+}
+
 func GET(path string, handlers ...HandlerFunc) {
 
+	handlers = append([]HandlerFunc{cors}, handlers...)
 	getApp().Get(path, handlers...)
 }
 
 func POST(path string, handlers ...HandlerFunc) {
 
+	handlers = append([]HandlerFunc{cors}, handlers...)
 	getApp().Post(path, handlers...)
 }
 
 func PUT(path string, handlers ...HandlerFunc) {
 
+	handlers = append([]HandlerFunc{cors}, handlers...)
 	getApp().Put(path, handlers...)
 }
 
 func PATCH(path string, handlers ...HandlerFunc) {
 
+	handlers = append([]HandlerFunc{cors}, handlers...)
 	getApp().Patch(path, handlers...)
 }
 
 func DELETE(path string, handlers ...HandlerFunc) {
 
+	handlers = append([]HandlerFunc{cors}, handlers...)
 	getApp().Delete(path, handlers...)
 }
 
