@@ -8,6 +8,7 @@ import (
 	"github.com/adlindo/gocom/config"
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 // FiberContext -------------------------------------------
@@ -191,6 +192,8 @@ func (o *FiberApp) Start() {
 	port := config.GetInt("app.http.port")
 
 	totalAddr := addr + ":" + strconv.Itoa(port)
+
+	o.app.Use(cors.New())
 
 	prometheus := fiberprometheus.New("service")
 	prometheus.RegisterAt(o.app, "/metrics")
