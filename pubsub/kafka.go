@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 type KafkaPubSubClient struct {
@@ -106,6 +107,18 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 		return
 	}
 	defer adminClient.Close()
+
+	md, err := adminClient.GetMetadata(nil, true, 10000)
+
+	if err != nil {
+		fmt.Printf("Error get metadata : %v\n", err)
+		return
+	}
+
+	for name, topic := range md.Topics {
+
+		fmt.Printf("=====>>>>>> Topic %s : %+v\n", name, topic)
+	}
 
 	// Specify the topic configuration
 	topicConfig := &kafka.TopicSpecification{
