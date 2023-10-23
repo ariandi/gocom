@@ -115,9 +115,13 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 		return
 	}
 
-	for name, topic := range md.Topics {
+	for name := range md.Topics {
 
-		fmt.Printf("=====>>>>>> Topic %s : %+v\n", name, topic)
+		if name == topic {
+			fmt.Printf("Topic already exist in server")
+			o.topicList[topic] = true
+			return
+		}
 	}
 
 	// Specify the topic configuration
