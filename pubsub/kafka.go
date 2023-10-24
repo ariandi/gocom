@@ -43,7 +43,7 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 	topic := subject
 
 	// check the topic is existed or not // if not exist will create new topic
-	o.createKafkaTopic(topic)
+	// o.checkTopic(topic)
 
 	err = o.producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
