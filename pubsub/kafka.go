@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 type KafkaPubSubClient struct {
@@ -42,7 +43,7 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 	topic := subject
 
 	// check the topic is existed or not // if not exist will create new topic
-	o.checkTopic(topic)
+	o.createKafkaTopic(topic)
 
 	err = o.producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
@@ -62,7 +63,7 @@ func (o *KafkaPubSubClient) Request(subject string, msg interface{}, timeOut ...
 func (o *KafkaPubSubClient) Subscribe(subject string, eventHandler PubSubEventHandler) {
 	// Create a Kafka consumer instance
 	if !o.topicConsumeList[subject] {
-		o.checkTopic(subject)
+		o.createKafkaTopic(subject) // check if kafka start before producer
 		fmt.Printf("New Consumer '%s' created.\n", subject)
 		go o.consumeTopic(subject, eventHandler)
 		o.topicConsumeList[subject] = true
@@ -74,9 +75,10 @@ func (o *KafkaPubSubClient) RequestSubscribe(subject string, eventHandler PubSub
 
 func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHandler PubSubEventHandler) {
 	if !o.topicQueueList[subject] {
-		o.checkTopic(subject)
+		o.createKafkaTopic(subject) // check if kafka start before producer
 		configConsumer := &kafka.ConfigMap{
-			"bootstrap.servers": o.connString,
+			"bootstrap.servers": o.connStringList["bootstrap.servers"],
+			"security.protocol": o.connStringList["security.protocol"],
 			"group.id":          queue,
 			"auto.offset.reset": "earliest",
 		}
@@ -105,6 +107,22 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 		return
 	}
 	defer adminClient.Close()
+
+	md, err := adminClient.GetMetadata(nil, true, 10000)
+
+	if err != nil {
+		fmt.Printf("Error get metadata : %v\n", err)
+		return
+	}
+
+	for name := range md.Topics {
+
+		if name == topic {
+			fmt.Println("Topic already exist in server :", topic)
+			o.topicList[topic] = true
+			return
+		}
+	}
 
 	// Specify the topic configuration
 	topicConfig := &kafka.TopicSpecification{
