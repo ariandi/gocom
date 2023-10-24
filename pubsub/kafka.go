@@ -43,7 +43,7 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 	topic := subject
 
 	// check the topic is existed or not // if not exist will create new topic
-	// o.checkTopic(topic)
+	//o.checkTopic(topic)
 
 	err = o.producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
@@ -51,7 +51,7 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 		Value: msgByte,
 	}, nil)
 
-	// o.producer.Flush(5000)
+	fmt.Printf("check producer error %v.\n", err)
 
 	return err
 }
@@ -184,12 +184,14 @@ func (o *KafkaPubSubClient) subscribeTopic(c *kafka.Consumer, topic string, even
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	run := true
 
-	for {
+	for run {
 		select {
 		case <-signals:
 			// Handle termination signals.
 			fmt.Println("Received termination signal. Shutting down consumer.")
+			run = false
 			return
 		default:
 			// Poll for messages.
