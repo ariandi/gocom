@@ -43,15 +43,39 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 	topic := subject
 
 	// check the topic is existed or not // if not exist will create new topic
-	//o.checkTopic(topic)
-
-	err = o.producer.Produce(&kafka.Message{
+	// o.checkTopic(topic)
+	message := &kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		// Key:            []byte(subject),
+		//Key:            []byte("6281219836581"), // Use the partition name as the key.
 		Value: msgByte,
-	}, nil)
+	}
 
-	fmt.Printf("check producer error %v.\n", err)
+	// Send the message to Kafka.
+	err = o.producer.Produce(message, nil)
+	if err != nil {
+		fmt.Printf("Error producing message: %v\n", err)
+		return err
+	}
+
+	fmt.Printf("Message sent to partition: %v\n", string(message.Value))
+
+	go func() {
+		for e := range o.producer.Events() {
+			switch ev := e.(type) {
+			case *kafka.Message:
+				if ev.TopicPartition.Error != nil {
+					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition.Error)
+				} else {
+					fmt.Printf("Delivered message to topic %s [%d] at offset %v\n",
+						*ev.TopicPartition.Topic, ev.TopicPartition.Partition, ev.TopicPartition.Offset)
+				}
+			}
+		}
+	}()
+
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, os.Interrupt)
+	<-sigchan
 
 	return err
 }
@@ -184,14 +208,12 @@ func (o *KafkaPubSubClient) subscribeTopic(c *kafka.Consumer, topic string, even
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	run := true
 
-	for run {
+	for {
 		select {
 		case <-signals:
 			// Handle termination signals.
 			fmt.Println("Received termination signal. Shutting down consumer.")
-			run = false
 			return
 		default:
 			// Poll for messages.
