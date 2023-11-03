@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -188,30 +187,52 @@ func (o *KafkaPubSubClient) subscribeTopic(c *kafka.Consumer, topic string, even
 
 	fmt.Printf("Consumer for topic %s started\n", topic)
 
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	//signals := make(chan os.Signal, 1)
+	//signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	//
+	//for {
+	//	select {
+	//	case <-signals:
+	//		// Handle termination signals.
+	//		fmt.Println("Received termination signal. Shutting down consumer.")
+	//		return
+	//	default:
+	//		// Poll for messages.
+	//		ev := c.Poll(100) // Adjust the timeout as needed.
+	//
+	//		switch e := ev.(type) {
+	//		case *kafka.Message:
+	//			// Handle the Kafka message.
+	//			fmt.Printf("Received message on topic %s: %s\n", *e.TopicPartition.Topic, string(e.Value))
+	//			eventHandler(topic, string(e.Value))
+	//		case kafka.Error:
+	//			// Handle Kafka errors.
+	//			fmt.Printf("Error while consuming Kafka message: %v\n", e)
+	//		}
+	//	}
+	//}
 
-	for {
-		select {
-		case <-signals:
-			// Handle termination signals.
-			fmt.Println("Received termination signal. Shutting down consumer.")
-			return
-		default:
-			// Poll for messages.
-			ev := c.Poll(100) // Adjust the timeout as needed.
+	// Handle messages in a goroutine
+	go func() {
+		sigchan := make(chan os.Signal, 1)
+		signal.Notify(sigchan, os.Interrupt)
 
-			switch e := ev.(type) {
-			case *kafka.Message:
-				// Handle the Kafka message.
-				fmt.Printf("Received message on topic %s: %s\n", *e.TopicPartition.Topic, string(e.Value))
-				eventHandler(topic, string(e.Value))
-			case kafka.Error:
-				// Handle Kafka errors.
-				fmt.Printf("Error while consuming Kafka message: %v\n", e)
+		for {
+			select {
+			case msg := <-c.Events():
+				switch ev := msg.(type) {
+				case *kafka.Message:
+					fmt.Printf("Received message: %s\n", string(ev.Value))
+					eventHandler(topic, string(ev.Value))
+				}
+			case <-sigchan:
+				break
 			}
 		}
-	}
+	}()
+
+	// Block until a signal is received (e.g., Ctrl+C)
+	<-make(chan struct{})
 }
 
 func init() {
