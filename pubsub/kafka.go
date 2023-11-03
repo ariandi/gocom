@@ -59,24 +59,6 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 
 	fmt.Printf("Message sent to partition: %v\n", string(message.Value))
 
-	go func() {
-		for e := range o.producer.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition.Error)
-				} else {
-					fmt.Printf("Delivered message to topic %s [%d] at offset %v\n",
-						*ev.TopicPartition.Topic, ev.TopicPartition.Partition, ev.TopicPartition.Offset)
-				}
-			}
-		}
-	}()
-
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, os.Interrupt)
-	<-sigchan
-
 	return err
 }
 
