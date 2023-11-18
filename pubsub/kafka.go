@@ -4,16 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/signal"
+	"github.com/IBM/sarama"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"log"
 	"strings"
 	"time"
-
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 type KafkaPubSubClient struct {
-	producer         *kafka.Producer
+	producer         sarama.SyncProducer
 	configMap        *kafka.ConfigMap
 	configConsumer   *kafka.ConfigMap
 	topicList        map[string]bool
@@ -43,20 +42,18 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 
 	// check the topic is existed or not // if not exist will create new topic
 	// o.checkTopic(topic)
-	message := &kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		//Key:            []byte("6281219836581"), // Use the partition name as the key.
-		Value: msgByte,
+	log.Printf("msgByte is %s", msgByte)
+	msgKafka := &sarama.ProducerMessage{
+		Topic: topic,
+		Value: sarama.StringEncoder(msgByte),
 	}
 
-	// Send the message to Kafka.
-	err = o.producer.Produce(message, nil)
+	partition, offset, err := o.producer.SendMessage(msgKafka)
 	if err != nil {
-		fmt.Printf("Error producing message: %v\n", err)
-		return err
+		log.Printf("Failed to produce message: %v", err)
+	} else {
+		log.Printf("Produced message to topic %s, partition %d, offset %d\n", topic, partition, offset)
 	}
-
-	fmt.Printf("Message sent to partition: %v\n", string(message.Value))
 
 	return err
 }
@@ -186,53 +183,23 @@ func (o *KafkaPubSubClient) subscribeTopic(c *kafka.Consumer, topic string, even
 	}
 
 	fmt.Printf("Consumer for topic %s started\n", topic)
-
-	//signals := make(chan os.Signal, 1)
-	//signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	//
-	//for {
-	//	select {
-	//	case <-signals:
-	//		// Handle termination signals.
-	//		fmt.Println("Received termination signal. Shutting down consumer.")
-	//		return
-	//	default:
-	//		// Poll for messages.
-	//		ev := c.Poll(100) // Adjust the timeout as needed.
-	//
-	//		switch e := ev.(type) {
-	//		case *kafka.Message:
-	//			// Handle the Kafka message.
-	//			fmt.Printf("Received message on topic %s: %s\n", *e.TopicPartition.Topic, string(e.Value))
-	//			eventHandler(topic, string(e.Value))
-	//		case kafka.Error:
-	//			// Handle Kafka errors.
-	//			fmt.Printf("Error while consuming Kafka message: %v\n", e)
-	//		}
-	//	}
-	//}
-
-	// Handle messages in a goroutine
-	go func() {
-		sigchan := make(chan os.Signal, 1)
-		signal.Notify(sigchan, os.Interrupt)
-
-		for {
-			select {
-			case msg := <-c.Events():
-				switch ev := msg.(type) {
-				case *kafka.Message:
-					fmt.Printf("Received message: %s\n", string(ev.Value))
-					eventHandler(topic, string(ev.Value))
-				}
-			case <-sigchan:
-				break
-			}
+	for {
+		ev := c.Poll(100) // Adjust the timeout as needed.
+		switch e := ev.(type) {
+		case *kafka.Message:
+			// Handle the Kafka message.
+			fmt.Printf("Received message on topic %s: %s\n", *e.TopicPartition.Topic, string(e.Value))
+			eventHandler(topic, string(e.Value))
+		case kafka.Error:
+			// Handle Kafka errors.
+			fmt.Printf("Error while consuming Kafka message: %v\n", e)
 		}
-	}()
+	}
 
-	// Block until a signal is received (e.g., Ctrl+C)
-	<-make(chan struct{})
+	//sig := <-signals
+	//fmt.Printf("Received signal: %v\n", sig)
+
+	//close(signals)
 }
 
 func init() {
@@ -259,21 +226,45 @@ func init() {
 		}
 
 		ret.connString = ret.connStringList["bootstrap.servers"]
-		ret.configMap = &kafka.ConfigMap{
-			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
-			"security.protocol": ret.connStringList["security.protocol"],
-		}
+		//ret.configMap = &kafka.ConfigMap{
+		//	"bootstrap.servers": ret.connStringList["bootstrap.servers"],
+		//	"security.protocol": ret.connStringList["security.protocol"],
+		//}
 
-		if ret.connStringList["security.protocol"] != "PLAINTEXT" {
-			ret.configMap.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
-			ret.configMap.SetKey("sasl.username", ret.connStringList["sasl.username"])
-			ret.configMap.SetKey("sasl.password", ret.connStringList["sasl.password"])
-		}
+		//if ret.connStringList["security.protocol"] != "PLAINTEXT" {
+		//	ret.configMap.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
+		//	ret.configMap.SetKey("sasl.username", ret.connStringList["sasl.username"])
+		//	ret.configMap.SetKey("sasl.password", ret.connStringList["sasl.password"])
+		//}
 
-		ret.producer, err = kafka.NewProducer(ret.configMap)
+		//ret.producer, err = kafka.NewProducer(ret.configMap)
+		//if err != nil {
+		//	return nil, err
+		//}
+
+		brokers := []string{ret.connStringList["bootstrap.servers"]} // Replace with your Kafka broker addresses
+
+		config := sarama.NewConfig()
+		config.Producer.RequiredAcks = sarama.WaitForAll
+		config.Producer.Retry.Max = 5
+		config.Producer.Retry.Backoff = 1000 * time.Millisecond
+		// config.Producer.Flush.Frequency = 500 * time.Millisecond // Flush batches every 500ms
+		config.Producer.Return.Successes = true
+
+		producer, err := sarama.NewSyncProducer(brokers, config)
 		if err != nil {
+			// log.Fatalf("Failed to start Sarama producer: %v", err)
+			fmt.Printf("Failed to start Sarama producer: %v\n", err)
 			return nil, err
 		}
+
+		ret.producer = producer
+
+		defer func() {
+			if errProd := producer.Close(); errProd != nil {
+				log.Fatalln("Failed to close producer:", errProd)
+			}
+		}()
 
 		//// for consumer group id should dynamic by aws configMap
 		ret.configConsumer = &kafka.ConfigMap{
