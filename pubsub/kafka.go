@@ -88,7 +88,6 @@ func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHa
 			"bootstrap.servers": o.connStringList["bootstrap.servers"],
 			"security.protocol": o.connStringList["security.protocol"],
 			"group.id":          queue,
-			"auto.offset.reset": "earliest",
 		}
 
 		if o.connStringList["security.protocol"] != "PLAINTEXT" {
