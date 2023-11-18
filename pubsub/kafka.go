@@ -55,6 +55,12 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 		log.Printf("Produced message to topic %s, partition %d, offset %d\n", topic, partition, offset)
 	}
 
+	//defer func() {
+	//	if errProd := ret.producer.Close(); errProd != nil {
+	//		log.Fatalln("Failed to close producer:", errProd)
+	//	}
+	//}()
+
 	return err
 }
 
@@ -226,10 +232,10 @@ func init() {
 		}
 
 		ret.connString = ret.connStringList["bootstrap.servers"]
-		//ret.configMap = &kafka.ConfigMap{
-		//	"bootstrap.servers": ret.connStringList["bootstrap.servers"],
-		//	"security.protocol": ret.connStringList["security.protocol"],
-		//}
+		ret.configMap = &kafka.ConfigMap{
+			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
+			"security.protocol": ret.connStringList["security.protocol"],
+		}
 
 		//if ret.connStringList["security.protocol"] != "PLAINTEXT" {
 		//	ret.configMap.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
@@ -251,20 +257,20 @@ func init() {
 		// config.Producer.Flush.Frequency = 500 * time.Millisecond // Flush batches every 500ms
 		config.Producer.Return.Successes = true
 
-		producer, err := sarama.NewSyncProducer(brokers, config)
+		ret.producer, err = sarama.NewSyncProducer(brokers, config)
 		if err != nil {
 			// log.Fatalf("Failed to start Sarama producer: %v", err)
 			fmt.Printf("Failed to start Sarama producer: %v\n", err)
 			return nil, err
 		}
 
-		ret.producer = producer
+		// ret.producer = producer
 
-		defer func() {
-			if errProd := producer.Close(); errProd != nil {
-				log.Fatalln("Failed to close producer:", errProd)
-			}
-		}()
+		//defer func() {
+		//	if errProd := ret.producer.Close(); errProd != nil {
+		//		log.Fatalln("Failed to close producer:", errProd)
+		//	}
+		//}()
 
 		//// for consumer group id should dynamic by aws configMap
 		ret.configConsumer = &kafka.ConfigMap{
