@@ -234,8 +234,8 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 	replicate := "2"
 	replicasPointer := &replicate
 	topicConfig := &sarama.TopicDetail{
-		NumPartitions:     1, // Number of partitions for the topic
-		ReplicationFactor: 2, // Replication factor for the topic
+		NumPartitions:     10, // Number of partitions for the topic
+		ReplicationFactor: 2,  // Replication factor for the topic
 		ConfigEntries: map[string]*string{
 			"min.insync.replicas": replicasPointer, // Set based on your requirements
 		},
