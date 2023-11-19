@@ -204,11 +204,11 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 	if err != nil {
 		log.Fatalf("Error creating Kafka Admin client: %v", err)
 	}
-	defer func() {
-		if err := adminClient.Close(); err != nil {
-			log.Printf("Error closing Kafka Admin client: %v", err)
-		}
-	}()
+	//defer func() {
+	//	if err := adminClient.Close(); err != nil {
+	//		log.Printf("Error closing Kafka Admin client: %v", err)
+	//	}
+	//}()
 
 	topics, err := adminClient.ListTopics()
 	if err != nil {
@@ -303,8 +303,8 @@ func (o *KafkaPubSubClient) subscribeTopic(topic string, eventHandler PubSubEven
 	//	log.Fatal(err)
 	//}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, _ := context.WithCancel(context.Background())
+	// defer cancel()
 
 	go func() {
 		for {
