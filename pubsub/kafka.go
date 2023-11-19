@@ -13,7 +13,7 @@ import (
 
 type KafkaPubSubClient struct {
 	producer         sarama.SyncProducer
-	configMap        *kafka.ConfigMap
+	configMap        *sarama.Config
 	configConsumer   sarama.ConsumerGroup
 	topicList        map[string]bool
 	topicConsumeList map[string]bool
@@ -103,71 +103,123 @@ func (o *KafkaPubSubClient) RequestSubscribe(subject string, eventHandler PubSub
 func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHandler PubSubEventHandler) {
 	if !o.topicQueueList[subject] {
 		o.createKafkaTopic(subject) // check if kafka start before producer
-		configConsumer := &kafka.ConfigMap{
-			"bootstrap.servers": o.connStringList["bootstrap.servers"],
-			"security.protocol": o.connStringList["security.protocol"],
-			"group.id":          queue,
-		}
+		//configConsumer := &kafka.ConfigMap{
+		//	"bootstrap.servers": o.connStringList["bootstrap.servers"],
+		//	"security.protocol": o.connStringList["security.protocol"],
+		//	"group.id":          queue,
+		//}
+		//
+		//if o.connStringList["security.protocol"] != "PLAINTEXT" {
+		//	configConsumer.SetKey("sasl.mechanism", o.connStringList["sasl.mechanism"])
+		//	configConsumer.SetKey("sasl.username", o.connStringList["sasl.username"])
+		//	configConsumer.SetKey("sasl.password", o.connStringList["sasl.password"])
+		//}
 
-		if o.connStringList["security.protocol"] != "PLAINTEXT" {
-			configConsumer.SetKey("sasl.mechanism", o.connStringList["sasl.mechanism"])
-			configConsumer.SetKey("sasl.username", o.connStringList["sasl.username"])
-			configConsumer.SetKey("sasl.password", o.connStringList["sasl.password"])
-		}
-
-		c, err := kafka.NewConsumer(configConsumer)
+		// c, err := kafka.NewConsumer(configConsumer)
+		brokers := []string{o.connStringList["bootstrap.servers"]}
+		queueConsumer, err := sarama.NewConsumerGroup(brokers, queue, o.configMap)
 		if err != nil {
 			fmt.Printf("Error creating queue Kafka consumer: %v\n", err)
 			return
 		}
+		//
+		//go o.subscribeTopic(c, subject, eventHandler)
+		ctx, _ := context.WithCancel(context.Background())
+		//defer cancel()
 
-		go o.subscribeTopic(c, subject, eventHandler)
+		go func() {
+			for {
+				select {
+				case err := <-queueConsumer.Errors():
+					log.Println("Error:", err)
+				case <-ctx.Done():
+					return
+				default:
+					if err := queueConsumer.Consume(ctx, []string{subject}, newConsumerHandler(eventHandler)); err != nil {
+						log.Fatal(err)
+					}
+				}
+			}
+		}()
 		o.topicQueueList[subject] = true
 	}
 }
 
 func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
-	adminClient, err := kafka.NewAdminClient(o.configMap)
+	//adminClient, err := kafka.NewAdminClient(o.configMap)
+	//if err != nil {
+	//	fmt.Printf("Error creating admin client: %v\n", err)
+	//	return
+	//}
+	//defer adminClient.Close()
+	//
+	//md, err := adminClient.GetMetadata(nil, true, 10000)
+	//
+	//if err != nil {
+	//	fmt.Printf("Error get metadata : %v\n", err)
+	//	return
+	//}
+	//
+	//for name := range md.Topics {
+	//
+	//	if name == topic {
+	//		fmt.Println("Topic already exist in server :", topic)
+	//		o.topicList[topic] = true
+	//		return
+	//	}
+	//}
+	//
+	//// Specify the topic configuration
+	//topicConfig := &kafka.TopicSpecification{
+	//	Topic:             topic,
+	//	NumPartitions:     10, // You can adjust the number of partitions as needed.
+	//	ReplicationFactor: 1,  // You can adjust the replication factor as needed.
+	//}
+	//
+	//ctx := context.Background()
+	//
+	//// Create the topic
+	//topics := []kafka.TopicSpecification{*topicConfig}
+	//_, err = adminClient.CreateTopics(ctx, topics, kafka.SetAdminOperationTimeout(5000))
+	//if err != nil {
+	//	fmt.Printf("Error creating topic: %v\n", err)
+	//} else {
+	//	o.topicList[topic] = true
+	//	fmt.Println("Topic created successfully!")
+	//}
+
+	// Create a Sarama configuration
+	config := sarama.NewConfig()
+	o.configMap.Version = sarama.V2_8_0_0 // Specify the Kafka protocol version
+
+	// Create a Kafka Admin client
+	brokerList := []string{o.connStringList["bootstrap.servers"]}
+	adminClient, err := sarama.NewClusterAdmin(brokerList, config)
 	if err != nil {
-		fmt.Printf("Error creating admin client: %v\n", err)
-		return
+		log.Fatalf("Error creating Kafka Admin client: %v", err)
 	}
-	defer adminClient.Close()
-
-	md, err := adminClient.GetMetadata(nil, true, 10000)
-
-	if err != nil {
-		fmt.Printf("Error get metadata : %v\n", err)
-		return
-	}
-
-	for name := range md.Topics {
-
-		if name == topic {
-			fmt.Println("Topic already exist in server :", topic)
-			o.topicList[topic] = true
-			return
+	defer func() {
+		if err := adminClient.Close(); err != nil {
+			log.Printf("Error closing Kafka Admin client: %v", err)
 		}
+	}()
+
+	// Define the topic configuration
+	topicConfig := &sarama.TopicDetail{
+		NumPartitions:     10,  // Number of partitions for the topic
+		ReplicationFactor: 1,   // Replication factor for the topic
+		ConfigEntries:     nil, // Additional topic configuration entries (can be nil)
 	}
 
-	// Specify the topic configuration
-	topicConfig := &kafka.TopicSpecification{
-		Topic:             topic,
-		NumPartitions:     10, // You can adjust the number of partitions as needed.
-		ReplicationFactor: 1,  // You can adjust the replication factor as needed.
-	}
+	// Specify the topic name
+	topicName := topic
 
-	ctx := context.Background()
-
-	// Create the topic
-	topics := []kafka.TopicSpecification{*topicConfig}
-	_, err = adminClient.CreateTopics(ctx, topics, kafka.SetAdminOperationTimeout(5000))
+	// Create the Kafka topic
+	err = adminClient.CreateTopic(topicName, topicConfig, false)
 	if err != nil {
-		fmt.Printf("Error creating topic: %v\n", err)
-	} else {
-		o.topicList[topic] = true
-		fmt.Println("Topic created successfully!")
+		log.Fatalf("Error creating Kafka topic: %v", err)
 	}
+	log.Printf("Kafka topic '%s' created successfully", topicName)
 }
 
 func (o *KafkaPubSubClient) checkTopic(topic string) {
@@ -310,10 +362,10 @@ func init() {
 		}
 
 		ret.connString = ret.connStringList["bootstrap.servers"]
-		ret.configMap = &kafka.ConfigMap{
-			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
-			"security.protocol": ret.connStringList["security.protocol"],
-		}
+		//ret.configMap = &kafka.ConfigMap{
+		//	"bootstrap.servers": ret.connStringList["bootstrap.servers"],
+		//	"security.protocol": ret.connStringList["security.protocol"],
+		//}
 
 		//if ret.connStringList["security.protocol"] != "PLAINTEXT" {
 		//	ret.configMap.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
@@ -369,7 +421,8 @@ func init() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		//defer consumerGroup.Close()
+
+		ret.configMap = config
 
 		mapping := make(map[string]bool)
 		if ret.topicList == nil {
