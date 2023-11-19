@@ -346,6 +346,7 @@ func (h *ConsumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 }
 
 func (h *ConsumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	fmt.Printf("masuk consumer claim")
 	for message := range claim.Messages() {
 		fmt.Printf("Consumed message from partition %d with offset %d: %s\n", message.Partition, message.Offset, string(message.Value))
 		h.EventHandler(message.Topic, string(message.Value))
