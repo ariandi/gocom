@@ -83,6 +83,7 @@ func (o *KafkaPubSubClient) Subscribe(subject string, eventHandler PubSubEventHa
 				case err := <-o.configConsumer.Errors():
 					log.Println("Error:", err)
 				case <-ctx.Done():
+					log.Println("coba:")
 					return
 				default:
 					if err := o.configConsumer.Consume(ctx, []string{subject}, newConsumerHandler(eventHandler)); err != nil {
@@ -227,8 +228,8 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 
 	// Define the topic configuration
 	topicConfig := &sarama.TopicDetail{
-		NumPartitions:     10,  // Number of partitions for the topic
-		ReplicationFactor: 10,  // Replication factor for the topic
+		NumPartitions:     1,   // Number of partitions for the topic
+		ReplicationFactor: 1,   // Replication factor for the topic
 		ConfigEntries:     nil, // Additional topic configuration entries (can be nil)
 	}
 
@@ -401,12 +402,14 @@ func init() {
 		//}
 
 		// brokers := []string{ret.connStringList["bootstrap.servers"]}
-		var brokers []string // Replace with your Kafka broker addresses
+		brokers := []string{} // Replace with your Kafka broker addresses
 		substrings3 := strings.Split(ret.connStringList["bootstrap.servers"], delimiter3)
 		for _, substring3 := range substrings3 {
 			fmt.Println("server is " + substring3)
 			brokers = append(brokers, substring3)
 		}
+
+		fmt.Printf("servers is %v ", brokers)
 
 		config := sarama.NewConfig()
 		config.Producer.RequiredAcks = sarama.WaitForAll
