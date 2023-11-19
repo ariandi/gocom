@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/IBM/sarama"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"log"
 	"strings"
 	"time"
@@ -260,7 +259,7 @@ func (o *KafkaPubSubClient) consumeTopic(topic string, eventHandler PubSubEventH
 	//o.subscribeTopic(c, topic, eventHandler)
 }
 
-func (o *KafkaPubSubClient) subscribeTopic(c *kafka.Consumer, topic string, eventHandler PubSubEventHandler) {
+func (o *KafkaPubSubClient) subscribeTopic(topic string, eventHandler PubSubEventHandler) {
 	//err := c.SubscribeTopics([]string{topic}, nil)
 	//if err != nil {
 	//	fmt.Printf("Error subscribing to topic: %v\n", err)
