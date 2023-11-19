@@ -228,7 +228,7 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 	// Define the topic configuration
 	topicConfig := &sarama.TopicDetail{
 		NumPartitions:     10,  // Number of partitions for the topic
-		ReplicationFactor: 1,   // Replication factor for the topic
+		ReplicationFactor: 10,  // Replication factor for the topic
 		ConfigEntries:     nil, // Additional topic configuration entries (can be nil)
 	}
 
