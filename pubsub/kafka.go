@@ -14,7 +14,7 @@ import (
 type KafkaPubSubClient struct {
 	producer         sarama.SyncProducer
 	configMap        *kafka.ConfigMap
-	configConsumer   *kafka.ConfigMap
+	configConsumer   sarama.ConsumerGroup
 	topicList        map[string]bool
 	topicConsumeList map[string]bool
 	topicQueueList   map[string]bool
@@ -72,8 +72,27 @@ func (o *KafkaPubSubClient) Subscribe(subject string, eventHandler PubSubEventHa
 	// Create a Kafka consumer instance
 	if !o.topicConsumeList[subject] {
 		o.createKafkaTopic(subject) // check if kafka start before producer
-		fmt.Printf("New Consumer '%s' created.\n", subject)
-		go o.consumeTopic(subject, eventHandler)
+		// fmt.Printf("New Consumer '%s' created.\n", subject)
+		// go o.consumeTopic(subject, eventHandler)
+
+		ctx, _ := context.WithCancel(context.Background())
+		//defer cancel()
+
+		go func() {
+			for {
+				select {
+				case err := <-o.configConsumer.Errors():
+					log.Println("Error:", err)
+				case <-ctx.Done():
+					return
+				default:
+					if err := o.configConsumer.Consume(ctx, []string{subject}, newConsumerHandler(eventHandler)); err != nil {
+						log.Fatal(err)
+					}
+				}
+			}
+		}()
+
 		o.topicConsumeList[subject] = true
 	}
 }
@@ -162,49 +181,109 @@ func (o *KafkaPubSubClient) checkTopic(topic string) {
 }
 
 func (o *KafkaPubSubClient) consumeTopic(topic string, eventHandler PubSubEventHandler) {
-	c, err := kafka.NewConsumer(o.configConsumer)
-	if err != nil {
-		fmt.Printf("Error creating Kafka consumer: %v\n", err)
-		return
-	}
-
-	defer c.Close()
-
-	//o.checkTopic(topic)
-	o.subscribeTopic(c, topic, eventHandler)
+	//c, err := kafka.NewConsumer(o.configConsumer)
+	//if err != nil {
+	//	fmt.Printf("Error creating Kafka consumer: %v\n", err)
+	//	return
+	//}
+	//
+	//defer c.Close()
+	//
+	////o.checkTopic(topic)
+	//o.subscribeTopic(c, topic, eventHandler)
 }
 
 func (o *KafkaPubSubClient) subscribeTopic(c *kafka.Consumer, topic string, eventHandler PubSubEventHandler) {
-	err := c.SubscribeTopics([]string{topic}, nil)
-	if err != nil {
-		fmt.Printf("Error subscribing to topic: %v\n", err)
-		defer func() {
-			err := recover()
+	//err := c.SubscribeTopics([]string{topic}, nil)
+	//if err != nil {
+	//	fmt.Printf("Error subscribing to topic: %v\n", err)
+	//	defer func() {
+	//		err := recover()
+	//
+	//		if err != nil {
+	//			fmt.Println("=====> SYSTEM PANIC WHEN PROCESS NATS MSG :", topic, " : ", err)
+	//		}
+	//	}()
+	//}
+	//
+	//fmt.Printf("Consumer for topic %s started\n", topic)
+	//for {
+	//	ev := c.Poll(100) // Adjust the timeout as needed.
+	//	switch e := ev.(type) {
+	//	case *kafka.Message:
+	//		// Handle the Kafka message.
+	//		fmt.Printf("Received message on topic %s: %s\n", *e.TopicPartition.Topic, string(e.Value))
+	//		eventHandler(topic, string(e.Value))
+	//	case kafka.Error:
+	//		// Handle Kafka errors.
+	//		fmt.Printf("Error while consuming Kafka message: %v\n", e)
+	//	}
+	//}
 
-			if err != nil {
-				fmt.Println("=====> SYSTEM PANIC WHEN PROCESS NATS MSG :", topic, " : ", err)
+	//config := sarama.NewConfig()
+	//config.Consumer.Return.Errors = true
+
+	//brokers := []string{"<broker_ip>:9092"} // Replace with your Kafka broker address
+	//
+	//consumerGroup, err := sarama.NewConsumerGroup(brokers, "my-group", config)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		for {
+			select {
+			case err := <-o.configConsumer.Errors():
+				log.Println("Error:", err)
+			case <-ctx.Done():
+				return
+			default:
+				if err := o.configConsumer.Consume(ctx, []string{topic}, newConsumerHandler(eventHandler)); err != nil {
+					log.Fatal(err)
+				}
 			}
-		}()
-	}
-
-	fmt.Printf("Consumer for topic %s started\n", topic)
-	for {
-		ev := c.Poll(100) // Adjust the timeout as needed.
-		switch e := ev.(type) {
-		case *kafka.Message:
-			// Handle the Kafka message.
-			fmt.Printf("Received message on topic %s: %s\n", *e.TopicPartition.Topic, string(e.Value))
-			eventHandler(topic, string(e.Value))
-		case kafka.Error:
-			// Handle Kafka errors.
-			fmt.Printf("Error while consuming Kafka message: %v\n", e)
 		}
+	}()
+}
+
+type ConsumerHandler struct {
+	EventHandler PubSubEventHandler
+}
+
+func newConsumerHandler(eventHandler PubSubEventHandler) sarama.ConsumerGroupHandler {
+	return &ConsumerHandler{
+		EventHandler: eventHandler,
+	}
+}
+
+func (h *ConsumerHandler) Setup(_ sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+func (h *ConsumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+func (h *ConsumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	for message := range claim.Messages() {
+		fmt.Printf("Consumed message from partition %d with offset %d: %s\n", message.Partition, message.Offset, string(message.Value))
+		h.EventHandler(message.Topic, string(message.Value))
+		session.MarkMessage(message, "")
 	}
 
-	//sig := <-signals
-	//fmt.Printf("Received signal: %v\n", sig)
+	return nil
+}
 
-	//close(signals)
+func parseKafkaMessage(message *sarama.ConsumerMessage) (PubSubEventHandler, error) {
+	// Assuming messages are JSON-encoded. Adjust the parsing logic based on your message format.
+	var eventHandler PubSubEventHandler
+	log.Println(message.Topic)
+	log.Println(message.Value)
+	// eventHandler("topic", "val")
+	return eventHandler, nil
 }
 
 func init() {
@@ -272,18 +351,25 @@ func init() {
 		//}()
 
 		//// for consumer group id should dynamic by aws configMap
-		ret.configConsumer = &kafka.ConfigMap{
-			"bootstrap.servers": ret.connStringList["bootstrap.servers"],
-			"security.protocol": ret.connStringList["security.protocol"],
-			"group.id":          "my-consumer-group",
-			"auto.offset.reset": "earliest",
-		}
+		//ret.configConsumer = &kafka.ConfigMap{
+		//	"bootstrap.servers": ret.connStringList["bootstrap.servers"],
+		//	"security.protocol": ret.connStringList["security.protocol"],
+		//	"group.id":          "my-consumer-group",
+		//	"auto.offset.reset": "earliest",
+		//}
 
-		if ret.connStringList["security.protocol"] != "PLAINTEXT" {
-			ret.configConsumer.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
-			ret.configConsumer.SetKey("sasl.username", ret.connStringList["sasl.username"])
-			ret.configConsumer.SetKey("sasl.password", ret.connStringList["sasl.password"])
+		//if ret.connStringList["security.protocol"] != "PLAINTEXT" {
+		//	ret.configConsumer.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
+		//	ret.configConsumer.SetKey("sasl.username", ret.connStringList["sasl.username"])
+		//	ret.configConsumer.SetKey("sasl.password", ret.connStringList["sasl.password"])
+		//}
+
+		config.Consumer.Return.Errors = true
+		ret.configConsumer, err = sarama.NewConsumerGroup(brokers, "my-group", config)
+		if err != nil {
+			log.Fatal(err)
 		}
+		//defer consumerGroup.Close()
 
 		mapping := make(map[string]bool)
 		if ret.topicList == nil {
