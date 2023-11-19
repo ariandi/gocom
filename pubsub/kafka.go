@@ -115,7 +115,14 @@ func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHa
 		//}
 
 		// c, err := kafka.NewConsumer(configConsumer)
-		brokers := []string{o.connStringList["bootstrap.servers"]}
+		// brokers := []string{o.connStringList["bootstrap.servers"]}
+		var brokers []string // Replace with your Kafka broker addresses
+		delimiter3 := ","
+		substrings3 := strings.Split(o.connStringList["bootstrap.servers"], delimiter3)
+		for _, substring3 := range substrings3 {
+			fmt.Println("server is " + substring3)
+			brokers = append(brokers, substring3)
+		}
 		queueConsumer, err := sarama.NewConsumerGroup(brokers, queue, o.configMap)
 		if err != nil {
 			fmt.Printf("Error creating queue Kafka consumer: %v\n", err)
@@ -362,6 +369,7 @@ func init() {
 		inputString := connString
 		delimiter := ";"
 		delimiter2 := "="
+		delimiter3 := ","
 		mappingString := make(map[string]string)
 		ret.connStringList = mappingString
 
@@ -392,7 +400,13 @@ func init() {
 		//	return nil, err
 		//}
 
-		brokers := []string{ret.connStringList["bootstrap.servers"]} // Replace with your Kafka broker addresses
+		// brokers := []string{ret.connStringList["bootstrap.servers"]}
+		var brokers []string // Replace with your Kafka broker addresses
+		substrings3 := strings.Split(ret.connStringList["bootstrap.servers"], delimiter3)
+		for _, substring3 := range substrings3 {
+			fmt.Println("server is " + substring3)
+			brokers = append(brokers, substring3)
+		}
 
 		config := sarama.NewConfig()
 		config.Producer.RequiredAcks = sarama.WaitForAll
