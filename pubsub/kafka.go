@@ -83,9 +83,9 @@ func (o *KafkaPubSubClient) Subscribe(subject string, eventHandler PubSubEventHa
 				case err := <-o.configConsumer.Errors():
 					log.Println("Error:", err)
 				case <-ctx.Done():
-					log.Println("coba:")
 					return
 				default:
+					log.Println("lagi:")
 					if err := o.configConsumer.Consume(ctx, []string{subject}, newConsumerHandler(eventHandler)); err != nil {
 						log.Fatal(err)
 					}
