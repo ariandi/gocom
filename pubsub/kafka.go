@@ -117,7 +117,7 @@ func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHa
 
 		// c, err := kafka.NewConsumer(configConsumer)
 		// brokers := []string{o.connStringList["bootstrap.servers"]}
-		var brokers []string // Replace with your Kafka broker addresses
+		brokers := []string{}
 		delimiter3 := ","
 		substrings3 := strings.Split(o.connStringList["bootstrap.servers"], delimiter3)
 		for _, substring3 := range substrings3 {
