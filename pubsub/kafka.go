@@ -121,7 +121,6 @@ func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHa
 		delimiter3 := ","
 		substrings3 := strings.Split(o.connStringList["bootstrap.servers"], delimiter3)
 		for _, substring3 := range substrings3 {
-			fmt.Println("server is " + substring3)
 			brokers = append(brokers, substring3)
 		}
 		queueConsumer, err := sarama.NewConsumerGroup(brokers, queue, o.configMap)
@@ -200,8 +199,13 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 	o.configMap.Version = sarama.V2_8_0_0 // Specify the Kafka protocol version
 
 	// Create a Kafka Admin client
-	brokerList := []string{o.connStringList["bootstrap.servers"]}
-	adminClient, err := sarama.NewClusterAdmin(brokerList, config)
+	delimiter3 := ","
+	brokers := []string{} // Replace with your Kafka broker addresses
+	substrings3 := strings.Split(o.connStringList["bootstrap.servers"], delimiter3)
+	for _, substring3 := range substrings3 {
+		brokers = append(brokers, substring3)
+	}
+	adminClient, err := sarama.NewClusterAdmin(brokers, config)
 	if err != nil {
 		log.Fatalf("Error creating Kafka Admin client: %v", err)
 	}
