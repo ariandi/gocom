@@ -204,6 +204,21 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 		}
 	}()
 
+	topics, err := adminClient.ListTopics()
+	if err != nil {
+		log.Fatalf("Error getting topic list: %v", err)
+	}
+
+	// Print the list of topics
+	log.Println("List of Kafka topics:")
+	for topicSearch := range topics {
+		if topicSearch == topic {
+			log.Println("topic already exists")
+			return
+		}
+		// log.Println(topic)
+	}
+
 	// Define the topic configuration
 	topicConfig := &sarama.TopicDetail{
 		NumPartitions:     10,  // Number of partitions for the topic
