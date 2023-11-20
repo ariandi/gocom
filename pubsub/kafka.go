@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/IBM/sarama"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -38,9 +39,6 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 		}
 	}
 	topic := subject
-
-	// check the topic is existed or not // if not exist will create new topic
-	// o.checkTopic(topic)
 	log.Printf("msgByte is %s", msgByte)
 	msgKafka := &sarama.ProducerMessage{
 		Topic: topic,
@@ -54,12 +52,6 @@ func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 		log.Printf("Produced message to topic %s, partition %d, offset %d\n", topic, partition, offset)
 	}
 
-	//defer func() {
-	//	if errProd := ret.producer.Close(); errProd != nil {
-	//		log.Fatalln("Failed to close producer:", errProd)
-	//	}
-	//}()
-
 	return err
 }
 
@@ -71,11 +63,7 @@ func (o *KafkaPubSubClient) Subscribe(subject string, eventHandler PubSubEventHa
 	// Create a Kafka consumer instance
 	if !o.topicConsumeList[subject] {
 		o.createKafkaTopic(subject) // check if kafka start before producer
-		// fmt.Printf("New Consumer '%s' created.\n", subject)
-		// go o.consumeTopic(subject, eventHandler)
-
 		ctx, _ := context.WithCancel(context.Background())
-		//defer cancel()
 
 		go func() {
 			for {
@@ -103,20 +91,6 @@ func (o *KafkaPubSubClient) RequestSubscribe(subject string, eventHandler PubSub
 func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHandler PubSubEventHandler) {
 	if !o.topicQueueList[subject] {
 		o.createKafkaTopic(subject) // check if kafka start before producer
-		//configConsumer := &kafka.ConfigMap{
-		//	"bootstrap.servers": o.connStringList["bootstrap.servers"],
-		//	"security.protocol": o.connStringList["security.protocol"],
-		//	"group.id":          queue,
-		//}
-		//
-		//if o.connStringList["security.protocol"] != "PLAINTEXT" {
-		//	configConsumer.SetKey("sasl.mechanism", o.connStringList["sasl.mechanism"])
-		//	configConsumer.SetKey("sasl.username", o.connStringList["sasl.username"])
-		//	configConsumer.SetKey("sasl.password", o.connStringList["sasl.password"])
-		//}
-
-		// c, err := kafka.NewConsumer(configConsumer)
-		// brokers := []string{o.connStringList["bootstrap.servers"]}
 		brokers := []string{}
 		delimiter3 := ","
 		substrings3 := strings.Split(o.connStringList["bootstrap.servers"], delimiter3)
@@ -152,50 +126,8 @@ func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHa
 }
 
 func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
-	//adminClient, err := kafka.NewAdminClient(o.configMap)
-	//if err != nil {
-	//	fmt.Printf("Error creating admin client: %v\n", err)
-	//	return
-	//}
-	//defer adminClient.Close()
-	//
-	//md, err := adminClient.GetMetadata(nil, true, 10000)
-	//
-	//if err != nil {
-	//	fmt.Printf("Error get metadata : %v\n", err)
-	//	return
-	//}
-	//
-	//for name := range md.Topics {
-	//
-	//	if name == topic {
-	//		fmt.Println("Topic already exist in server :", topic)
-	//		o.topicList[topic] = true
-	//		return
-	//	}
-	//}
-	//
-	//// Specify the topic configuration
-	//topicConfig := &kafka.TopicSpecification{
-	//	Topic:             topic,
-	//	NumPartitions:     10, // You can adjust the number of partitions as needed.
-	//	ReplicationFactor: 1,  // You can adjust the replication factor as needed.
-	//}
-	//
-	//ctx := context.Background()
-	//
-	//// Create the topic
-	//topics := []kafka.TopicSpecification{*topicConfig}
-	//_, err = adminClient.CreateTopics(ctx, topics, kafka.SetAdminOperationTimeout(5000))
-	//if err != nil {
-	//	fmt.Printf("Error creating topic: %v\n", err)
-	//} else {
-	//	o.topicList[topic] = true
-	//	fmt.Println("Topic created successfully!")
-	//}
-
 	// Create a Sarama configuration
-	config := sarama.NewConfig()
+	// config := sarama.NewConfig()
 	o.configMap.Version = sarama.V2_8_0_0 // Specify the Kafka protocol version
 
 	// Create a Kafka Admin client
@@ -205,15 +137,10 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 	for _, substring3 := range substrings3 {
 		brokers = append(brokers, substring3)
 	}
-	adminClient, err := sarama.NewClusterAdmin(brokers, config)
+	adminClient, err := sarama.NewClusterAdmin(brokers, o.configMap)
 	if err != nil {
 		log.Fatalf("Error creating Kafka Admin client: %v", err)
 	}
-	//defer func() {
-	//	if err := adminClient.Close(); err != nil {
-	//		log.Printf("Error closing Kafka Admin client: %v", err)
-	//	}
-	//}()
 
 	topics, err := adminClient.ListTopics()
 	if err != nil {
@@ -232,13 +159,16 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 
 	// Define the topic configuration
 	replicate := "2"
+	if o.connStringList["replicas"] != "" {
+		replicate = o.connStringList["replicas"]
+	}
+	replicateInt, _ := strconv.Atoi(replicate)
 	replicasPointer := &replicate
+	log.Printf("replicasPointer %v", replicasPointer)
 	topicConfig := &sarama.TopicDetail{
-		NumPartitions:     10, // Number of partitions for the topic
-		ReplicationFactor: 2,  // Replication factor for the topic
-		ConfigEntries: map[string]*string{
-			"min.insync.replicas": replicasPointer, // Set based on your requirements
-		},
+		NumPartitions:     10,                  // Number of partitions for the topic
+		ReplicationFactor: int16(replicateInt), // Replication factor for the topic
+		ConfigEntries:     nil,
 	}
 
 	// Specify the topic name
@@ -263,57 +193,11 @@ func (o *KafkaPubSubClient) checkTopic(topic string) {
 }
 
 func (o *KafkaPubSubClient) consumeTopic(topic string, eventHandler PubSubEventHandler) {
-	//c, err := kafka.NewConsumer(o.configConsumer)
-	//if err != nil {
-	//	fmt.Printf("Error creating Kafka consumer: %v\n", err)
-	//	return
-	//}
-	//
-	//defer c.Close()
-	//
-	////o.checkTopic(topic)
-	//o.subscribeTopic(c, topic, eventHandler)
+
 }
 
 func (o *KafkaPubSubClient) subscribeTopic(topic string, eventHandler PubSubEventHandler) {
-	//err := c.SubscribeTopics([]string{topic}, nil)
-	//if err != nil {
-	//	fmt.Printf("Error subscribing to topic: %v\n", err)
-	//	defer func() {
-	//		err := recover()
-	//
-	//		if err != nil {
-	//			fmt.Println("=====> SYSTEM PANIC WHEN PROCESS NATS MSG :", topic, " : ", err)
-	//		}
-	//	}()
-	//}
-	//
-	//fmt.Printf("Consumer for topic %s started\n", topic)
-	//for {
-	//	ev := c.Poll(100) // Adjust the timeout as needed.
-	//	switch e := ev.(type) {
-	//	case *kafka.Message:
-	//		// Handle the Kafka message.
-	//		fmt.Printf("Received message on topic %s: %s\n", *e.TopicPartition.Topic, string(e.Value))
-	//		eventHandler(topic, string(e.Value))
-	//	case kafka.Error:
-	//		// Handle Kafka errors.
-	//		fmt.Printf("Error while consuming Kafka message: %v\n", e)
-	//	}
-	//}
-
-	//config := sarama.NewConfig()
-	//config.Consumer.Return.Errors = true
-
-	//brokers := []string{"<broker_ip>:9092"} // Replace with your Kafka broker address
-	//
-	//consumerGroup, err := sarama.NewConsumerGroup(brokers, "my-group", config)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-
 	ctx, _ := context.WithCancel(context.Background())
-	// defer cancel()
 
 	go func() {
 		for {
@@ -394,23 +278,6 @@ func init() {
 		}
 
 		ret.connString = ret.connStringList["bootstrap.servers"]
-		//ret.configMap = &kafka.ConfigMap{
-		//	"bootstrap.servers": ret.connStringList["bootstrap.servers"],
-		//	"security.protocol": ret.connStringList["security.protocol"],
-		//}
-
-		//if ret.connStringList["security.protocol"] != "PLAINTEXT" {
-		//	ret.configMap.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
-		//	ret.configMap.SetKey("sasl.username", ret.connStringList["sasl.username"])
-		//	ret.configMap.SetKey("sasl.password", ret.connStringList["sasl.password"])
-		//}
-
-		//ret.producer, err = kafka.NewProducer(ret.configMap)
-		//if err != nil {
-		//	return nil, err
-		//}
-
-		// brokers := []string{ret.connStringList["bootstrap.servers"]}
 		brokers := []string{} // Replace with your Kafka broker addresses
 		substrings3 := strings.Split(ret.connStringList["bootstrap.servers"], delimiter3)
 		for _, substring3 := range substrings3 {
@@ -426,6 +293,7 @@ func init() {
 		config.Producer.Retry.Backoff = 1000 * time.Millisecond
 		// config.Producer.Flush.Frequency = 500 * time.Millisecond // Flush batches every 500ms
 		config.Producer.Return.Successes = true
+		config.Admin.Timeout = 5000 * time.Millisecond
 
 		ret.producer, err = sarama.NewSyncProducer(brokers, config)
 		if err != nil {
@@ -433,28 +301,6 @@ func init() {
 			fmt.Printf("Failed to start Sarama producer: %v\n", err)
 			return nil, err
 		}
-
-		// ret.producer = producer
-
-		//defer func() {
-		//	if errProd := ret.producer.Close(); errProd != nil {
-		//		log.Fatalln("Failed to close producer:", errProd)
-		//	}
-		//}()
-
-		//// for consumer group id should dynamic by aws configMap
-		//ret.configConsumer = &kafka.ConfigMap{
-		//	"bootstrap.servers": ret.connStringList["bootstrap.servers"],
-		//	"security.protocol": ret.connStringList["security.protocol"],
-		//	"group.id":          "my-consumer-group",
-		//	"auto.offset.reset": "earliest",
-		//}
-
-		//if ret.connStringList["security.protocol"] != "PLAINTEXT" {
-		//	ret.configConsumer.SetKey("sasl.mechanism", ret.connStringList["sasl.mechanism"])
-		//	ret.configConsumer.SetKey("sasl.username", ret.connStringList["sasl.username"])
-		//	ret.configConsumer.SetKey("sasl.password", ret.connStringList["sasl.password"])
-		//}
 
 		config.Consumer.Return.Errors = true
 		ret.configConsumer, err = sarama.NewConsumerGroup(brokers, "my-group", config)
