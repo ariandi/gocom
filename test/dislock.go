@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ariandi/gocom"
+	"gitlab.axiatadigitallabs.com/adlindo/gocom"
 )
 
 var lock *gocom.DistLock

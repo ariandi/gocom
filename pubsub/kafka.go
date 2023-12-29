@@ -12,15 +12,17 @@ import (
 )
 
 type KafkaPubSubClient struct {
-	producer         sarama.SyncProducer
-	configMap        *sarama.Config
-	configConsumer   sarama.ConsumerGroup
-	topicList        map[string]bool
-	topicConsumeList map[string]bool
-	topicQueueList   map[string]bool
-	connStringList   map[string]string
-	connString       string
+	producer       sarama.SyncProducer
+	configMap      *sarama.Config
+	configConsumer sarama.ConsumerGroup
+	topicList      map[string]bool
+	// topicConsumeList []string
+	topicQueueList map[string]bool
+	connStringList map[string]string
+	connString     string
 }
+
+var topicStr = ""
 
 func (o *KafkaPubSubClient) Publish(subject string, msg interface{}) error {
 
@@ -61,27 +63,35 @@ func (o *KafkaPubSubClient) Request(subject string, msg interface{}, timeOut ...
 
 func (o *KafkaPubSubClient) Subscribe(subject string, eventHandler PubSubEventHandler) {
 	// Create a Kafka consumer instance
-	if !o.topicConsumeList[subject] {
+	fmt.Printf("Prepare consuming %v topic\n", subject)
+	fmt.Printf("Prepare coba is %v\n", topicStr)
+	topicStrArr := strings.Split(topicStr, "__")
+	fmt.Printf("check topicStr %v is running %v \n", subject, topicStr)
+	if !o.includes(topicStrArr, subject) {
+		fmt.Printf("Start consuming %v topic\n", subject)
+		if topicStr == "" {
+			topicStr = subject
+		} else {
+			topicStr = topicStr + "__" + subject
+		}
+		fmt.Printf("topicStr is %v\n", topicStr)
+		// *topicConsumeList = append(*topicConsumeList, subject)
 		o.createKafkaTopic(subject) // check if kafka start before producer
-		ctx, _ := context.WithCancel(context.Background())
+		// ctx, _ := context.WithCancel(context.Background())
+		brokers := []string{}
+		delimiter3 := ","
+		substrings3 := strings.Split(o.connStringList["bootstrap.servers"], delimiter3)
+		for _, substring3 := range substrings3 {
+			brokers = append(brokers, substring3)
+		}
 
-		go func() {
-			for {
-				select {
-				case err := <-o.configConsumer.Errors():
-					log.Println("Error:", err)
-				case <-ctx.Done():
-					return
-				default:
-					log.Println("lagi:")
-					if err := o.configConsumer.Consume(ctx, []string{subject}, newConsumerHandler(eventHandler)); err != nil {
-						log.Fatal(err)
-					}
-				}
-			}
-		}()
-
-		o.topicConsumeList[subject] = true
+		config := sarama.NewConfig()
+		config.Consumer.Return.Errors = true
+		configConsumer, err := sarama.NewConsumerGroup(brokers, "my-group-"+subject, config)
+		if err != nil {
+			fmt.Printf("Failed to start Sarama consumer: %v\n", err)
+		}
+		go o.consumeFromGroup(configConsumer, subject, eventHandler)
 	}
 }
 
@@ -89,7 +99,10 @@ func (o *KafkaPubSubClient) RequestSubscribe(subject string, eventHandler PubSub
 }
 
 func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHandler PubSubEventHandler) {
-	if !o.topicQueueList[subject] {
+	fmt.Printf("Prepare consuming queue %v topic %v queue\n", subject, queue)
+	fmt.Printf("topicQueueList %v \n", o.topicQueueList)
+	if !o.topicQueueList[subject+"_"+queue] {
+		log.Printf("start consuming %v topic and %v queue ", subject, queue)
 		o.createKafkaTopic(subject) // check if kafka start before producer
 		brokers := []string{}
 		delimiter3 := ","
@@ -97,31 +110,35 @@ func (o *KafkaPubSubClient) QueueSubscribe(subject string, queue string, eventHa
 		for _, substring3 := range substrings3 {
 			brokers = append(brokers, substring3)
 		}
-		queueConsumer, err := sarama.NewConsumerGroup(brokers, queue, o.configMap)
+
+		config := sarama.NewConfig()
+		config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategySticky
+		config.Consumer.Return.Errors = true
+		queueConsumer, err := sarama.NewConsumerGroup(brokers, queue, config)
 		if err != nil {
 			fmt.Printf("Error creating queue Kafka consumer: %v\n", err)
 			return
 		}
-		//
-		//go o.subscribeTopic(c, subject, eventHandler)
-		ctx, _ := context.WithCancel(context.Background())
-		//defer cancel()
+		go o.consumeFromGroup(queueConsumer, subject, eventHandler)
+		o.topicQueueList[subject+"_"+queue] = true
+	}
+}
 
-		go func() {
-			for {
-				select {
-				case err := <-queueConsumer.Errors():
-					log.Println("Error:", err)
-				case <-ctx.Done():
-					return
-				default:
-					if err := queueConsumer.Consume(ctx, []string{subject}, newConsumerHandler(eventHandler)); err != nil {
-						log.Fatal(err)
-					}
-				}
-			}
-		}()
-		o.topicQueueList[subject] = true
+func (o *KafkaPubSubClient) consumeFromGroup(consumer sarama.ConsumerGroup, topic string, eventHandler PubSubEventHandler) {
+	errCount := 0
+	for {
+		if errCount > 10 {
+			break
+		}
+		handler := &ConsumerHandler{
+			EventHandler: eventHandler,
+		}
+
+		log.Printf("debug start consuming name %v topic", topic)
+		if err := consumer.Consume(context.Background(), []string{topic}, handler); err != nil {
+			log.Printf("Error from consumer group: %v\n", err)
+			errCount++
+		}
 	}
 }
 
@@ -164,11 +181,12 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 	}
 	replicateInt, _ := strconv.Atoi(replicate)
 	replicasPointer := &replicate
-	log.Printf("replicasPointer %v", replicasPointer)
 	topicConfig := &sarama.TopicDetail{
 		NumPartitions:     10,                  // Number of partitions for the topic
 		ReplicationFactor: int16(replicateInt), // Replication factor for the topic
-		ConfigEntries:     nil,
+		ConfigEntries: map[string]*string{
+			"min.insync.replicas": replicasPointer, // Set based on your requirements
+		},
 	}
 
 	// Specify the topic name
@@ -177,7 +195,7 @@ func (o *KafkaPubSubClient) createKafkaTopic(topic string) {
 	// Create the Kafka topic
 	err = adminClient.CreateTopic(topicName, topicConfig, false)
 	if err != nil {
-		log.Fatalf("Error creating Kafka topic: %v", err)
+		log.Printf("Error creating Kafka topic: %v", err)
 	}
 	log.Printf("Kafka topic '%s' created successfully", topicName)
 }
@@ -208,7 +226,7 @@ func (o *KafkaPubSubClient) subscribeTopic(topic string, eventHandler PubSubEven
 				return
 			default:
 				if err := o.configConsumer.Consume(ctx, []string{topic}, newConsumerHandler(eventHandler)); err != nil {
-					log.Fatal(err)
+					log.Println("Error:", err)
 				}
 			}
 		}
@@ -234,9 +252,8 @@ func (h *ConsumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 }
 
 func (h *ConsumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	fmt.Printf("masuk consumer claim")
 	for message := range claim.Messages() {
-		fmt.Printf("Consumed message from partition %d with offset %d: %s\n", message.Partition, message.Offset, string(message.Value))
+		fmt.Printf("Consumed message from partition %d with offset %d and topic %v: %s\n", message.Partition, message.Offset, message.Topic, string(message.Value))
 		h.EventHandler(message.Topic, string(message.Value))
 		session.MarkMessage(message, "")
 	}
@@ -244,13 +261,13 @@ func (h *ConsumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 	return nil
 }
 
-func parseKafkaMessage(message *sarama.ConsumerMessage) (PubSubEventHandler, error) {
-	// Assuming messages are JSON-encoded. Adjust the parsing logic based on your message format.
-	var eventHandler PubSubEventHandler
-	log.Println(message.Topic)
-	log.Println(message.Value)
-	// eventHandler("topic", "val")
-	return eventHandler, nil
+func (o *KafkaPubSubClient) includes(arr []string, target string) bool {
+	for _, value := range arr {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func init() {
@@ -280,12 +297,13 @@ func init() {
 		ret.connString = ret.connStringList["bootstrap.servers"]
 		brokers := []string{} // Replace with your Kafka broker addresses
 		substrings3 := strings.Split(ret.connStringList["bootstrap.servers"], delimiter3)
-		for _, substring3 := range substrings3 {
+		for i, substring3 := range substrings3 {
 			fmt.Println("server is " + substring3)
 			brokers = append(brokers, substring3)
+			fmt.Println("server loop is " + strconv.Itoa(i))
 		}
 
-		fmt.Printf("servers is %v ", brokers)
+		fmt.Printf("get brocker list complete")
 
 		config := sarama.NewConfig()
 		config.Producer.RequiredAcks = sarama.WaitForAll
@@ -303,9 +321,11 @@ func init() {
 		}
 
 		config.Consumer.Return.Errors = true
+		// plan to delete this code
 		ret.configConsumer, err = sarama.NewConsumerGroup(brokers, "my-group", config)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Printf("Failed to start Sarama consumer: %v\n", err)
+			return nil, err
 		}
 
 		ret.configMap = config
@@ -313,9 +333,6 @@ func init() {
 		mapping := make(map[string]bool)
 		if ret.topicList == nil {
 			ret.topicList = mapping
-		}
-		if ret.topicConsumeList == nil {
-			ret.topicConsumeList = mapping
 		}
 		if ret.topicQueueList == nil {
 			ret.topicQueueList = mapping

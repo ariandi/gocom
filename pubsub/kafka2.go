@@ -1,0 +1,288 @@
+package pubsub
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	kafka "github.com/segmentio/kafka-go"
+)
+
+type Kafka2Client struct {
+	Servers        []string
+	mapWriter      map[string]*kafka.Writer
+	mapSubscribe   map[string]int
+	subLock        sync.Mutex
+	topicCheck     map[string]bool
+	topicCheclLock sync.Mutex
+}
+
+func (o *Kafka2Client) Publish(subject string, msg interface{}) error {
+
+	o.MakeSureTopic(subject)
+
+	writer := o.getWriter(subject)
+
+	if writer == nil {
+		return errors.New("unable to get writer")
+	}
+
+	bytA, err := json.Marshal(msg)
+
+	if err != nil {
+		return err
+	}
+
+	err = writer.WriteMessages(context.Background(), kafka.Message{
+		Value: bytA,
+	})
+
+	return err
+}
+
+func (o *Kafka2Client) Request(subject string, msg interface{}, timeOut ...time.Duration) (string, error) {
+	return "", errors.New("not implemented")
+}
+
+func (o *Kafka2Client) MakeSureTopic(subject string) {
+
+	if len(o.Servers) == 0 {
+		return
+	}
+
+	o.topicCheclLock.Lock()
+	defer o.topicCheclLock.Unlock()
+
+	_, exist := o.topicCheck[subject]
+
+	if exist {
+
+		return
+	}
+
+	o.topicCheck[subject] = true
+
+	conn, err := kafka.Dial("tcp", o.Servers[0])
+	if err != nil {
+
+		fmt.Println("dial kafka error : ", err)
+		return
+	}
+	defer conn.Close()
+
+	// check existing partition
+	partitions, err := conn.ReadPartitions()
+	if err != nil {
+
+		fmt.Println("unable to list kafka topic error : ", err)
+		return
+	}
+
+	topicExist := false
+
+	for _, p := range partitions {
+
+		if p.Topic == subject {
+			topicExist = true
+			break
+		}
+	}
+
+	if topicExist {
+		return
+	}
+
+	controller, err := conn.Controller()
+	if err != nil {
+		fmt.Println("get kafka controller error : ", err)
+		return
+	}
+
+	controllerConn, err := kafka.Dial("tcp", net.JoinHostPort(controller.Host, strconv.Itoa(controller.Port)))
+	if err != nil {
+		fmt.Println("dial kafka controller error : ", err)
+		return
+	}
+	defer controllerConn.Close()
+
+	topicConfigs := []kafka.TopicConfig{{Topic: subject, NumPartitions: 1, ReplicationFactor: 1}}
+
+	err = controllerConn.CreateTopics(topicConfigs...)
+	if err != nil {
+		fmt.Println("create topic error : ", err)
+		return
+	}
+}
+
+func (o *Kafka2Client) Subscribe(subject string, eventHandler PubSubEventHandler) {
+
+	o.MakeSureTopic(subject)
+
+	o.subLock.Lock()
+	defer o.subLock.Unlock()
+
+	subNo, exist := o.mapSubscribe[subject]
+
+	if !exist {
+		subNo = 0
+	}
+
+	subNo++
+	o.mapSubscribe[subject] = subNo
+
+	go func() {
+
+		// since segmentio kafka-go subscribe only 1 partition
+		// we simulate subscribe to all partition using autogenere group
+
+		exeName, _ := os.Executable()
+
+		if exeName == "" {
+			fmt.Println("Unable to get app name for automatic group id")
+			return
+		}
+
+		queue := filepath.Base(exeName) + "::" + strconv.Itoa(subNo)
+		reader := kafka.NewReader(kafka.ReaderConfig{
+			Brokers:     o.Servers,
+			Topic:       subject,
+			GroupID:     subject + "::" + queue,
+			MaxBytes:    1e6,
+			StartOffset: kafka.LastOffset,
+		})
+
+		reader.SetOffset(kafka.LastOffset)
+
+		defer reader.Close()
+
+		for {
+			m, err := reader.ReadMessage(context.Background())
+			if err != nil {
+				fmt.Println("=======>> ERRROR QUEUE SUBSCRIBE", err)
+
+				if strings.Contains(err.Error(), "rebalance") {
+					continue
+				}
+
+				fmt.Println("Closing subscribe reader")
+				return
+			}
+			fmt.Printf("message at topic:%v partition:%v offset:%v	%s = %s\n", m.Topic, m.Partition, m.Offset, string(m.Key), string(m.Value))
+
+			o.doConsume(subject, "", m, eventHandler)
+		}
+	}()
+}
+
+func (o *Kafka2Client) RequestSubscribe(subject string, eventHandler PubSubReqEventHandler) {
+}
+
+func (o *Kafka2Client) QueueSubscribe(subject string, queue string, eventHandler PubSubEventHandler) {
+
+	go func() {
+
+		o.MakeSureTopic(subject)
+
+		reader := kafka.NewReader(kafka.ReaderConfig{
+			Brokers:     o.Servers,
+			GroupID:     subject + "::" + queue,
+			Topic:       subject,
+			MaxBytes:    1e6,
+			StartOffset: kafka.LastOffset,
+		})
+
+		defer reader.Close()
+
+		for {
+			m, err := reader.ReadMessage(context.Background())
+			if err != nil {
+				fmt.Println("=======>> ERRROR QUEUE SUBSCRIBE", err)
+
+				if strings.Contains(err.Error(), "rebalance") {
+					continue
+				}
+
+				fmt.Println("Closing queue subscribe reader")
+				return
+			}
+			fmt.Printf("message at topic:%v partition:%v offset:%v	%s = %s\n", m.Topic, m.Partition, m.Offset, string(m.Key), string(m.Value))
+
+			o.doConsume(subject, queue, m, eventHandler)
+		}
+	}()
+}
+
+func (o *Kafka2Client) doConsume(subject string, queue string, msg kafka.Message, eventHandler PubSubEventHandler) {
+
+	defer func() {
+
+		err := recover()
+
+		if err != nil {
+
+			fmt.Println("=====> SYSTEM PANIC WHEN PROCESS NATS QUEUE MSG :", subject, ", Queue : ", queue, ", Error :", err)
+		}
+	}()
+
+	eventHandler(subject, string(msg.Value))
+}
+
+func (o *Kafka2Client) getWriter(topic string) *kafka.Writer {
+
+	ret := o.mapWriter[topic]
+
+	if ret == nil {
+
+		ret = &kafka.Writer{
+			Addr:     kafka.TCP(o.Servers...),
+			Topic:    topic,
+			Balancer: &kafka.LeastBytes{},
+			Async:    true,
+		}
+
+		o.mapWriter[topic] = ret
+	}
+
+	return ret
+}
+
+func init() {
+	RegPubSubCreator("kafka2", func(connString string) (PubSubClient, error) {
+		return NewKafka2(connString)
+	})
+}
+
+func NewKafka2(connString string) (PubSubClient, error) {
+	configList := strings.Split(connString, ";")
+	servers := "localhost:9092"
+
+	for _, line := range configList {
+
+		keyval := strings.Split(line, "=")
+
+		if len(keyval) > 0 {
+
+			switch keyval[0] {
+			case "bootstrap.servers":
+				servers = strings.TrimSpace(keyval[1])
+			}
+		}
+	}
+
+	ret := &Kafka2Client{
+		Servers:      strings.Split(servers, ","),
+		mapWriter:    map[string]*kafka.Writer{},
+		mapSubscribe: map[string]int{},
+		topicCheck:   map[string]bool{},
+	}
+
+	return ret, nil
+}

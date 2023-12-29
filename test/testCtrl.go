@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ariandi/gocom"
 	"github.com/jinzhu/copier"
+	"gitlab.axiatadigitallabs.com/adlindo/gocom"
 )
 
 type TestCtrl struct {

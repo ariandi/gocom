@@ -1,417 +1,231 @@
 package distobj
 
 import (
-	"encoding/json"
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"reflect"
 	"time"
 
-	"github.com/ariandi/gocom/pubsub"
+	"gitlab.axiatadigitallabs.com/adlindo/gocom/queue"
 )
 
-type DistObjReqMsg struct {
-	Params []interface{}
+type Request struct {
+	MethodName string
+	Params     []interface{}
 }
 
-type DistObjResMsg struct {
-	IsErr  bool
-	ErrMsg string
-	Result []interface{}
+type Response struct {
+	Results []interface{}
 }
 
-func Invoke(prefix, className, methodName string, params ...interface{}) ([]interface{}, error) {
-
-	req := DistObjReqMsg{
-		Params: params,
-	}
-
-	targetName := className + ">>" + methodName
-
-	if prefix != "" {
-		targetName = prefix + "__" + targetName
-	}
-
-	targetName = "distobj::" + targetName
-
-	retStr, err := pubsub.Get().Request(targetName, req, 5*time.Minute)
-
-	if err != nil {
-		return nil, err
-	}
-
-	ret := DistObjResMsg{}
-	err = json.Unmarshal([]byte(retStr), &ret)
-
-	if err != nil {
-		fmt.Println("error 111111")
-		return nil, err
-	}
-
-	fmt.Println("error 222222")
-
-	if ret.IsErr {
-		return nil, errors.New(ret.ErrMsg)
-	}
-
-	fmt.Println("error 33333", ret.Result)
-
-	return ret.Result, err
+type StringError struct {
+	Msg string
 }
 
-func AddImpl(prefix, className string, impl interface{}) {
+type Option struct {
+	Config    string
+	NameSpace string
+	NumWorker int
+}
 
-	implType := reflect.TypeOf(impl)
+func GetDefaultOption() Option {
 
-	for i := 0; i < implType.NumMethod(); i++ {
+	ret := Option{
+		Config:    "default",
+		NameSpace: "package",
+		NumWorker: 2,
+	}
 
-		proxy(prefix, className, impl, implType.Method(i))
+	return ret
+}
+
+var errType reflect.Type = reflect.TypeOf(errors.New(""))
+
+func mergeOption(target *Option, src Option) {
+
+	if src.Config != "" {
+		target.Config = src.NameSpace
+	}
+
+	if src.NameSpace != "" {
+		target.NameSpace = src.NameSpace
 	}
 }
 
-func proxy(prefix, className string, impl interface{}, method reflect.Method) {
+func Register(iface interface{}, obj interface{}, options ...Option) error {
 
-	targetName := className + ">>" + method.Name
+	ifaceType := reflect.TypeOf(iface)
 
-	if prefix != "" {
-		targetName = prefix + "__" + targetName
+	if ifaceType == nil {
+		return errors.New("unable to get interface type")
 	}
 
-	targetName = "distobj::" + targetName
+	implType := reflect.TypeOf(obj)
 
-	pubsub.Get().RequestSubscribe(targetName,
-		func(name, msg string) string {
+	opt := GetDefaultOption()
 
-			req := DistObjReqMsg{}
-			res := DistObjResMsg{}
+	if len(options) > 0 {
+		mergeOption(&opt, options[0])
+	}
 
-			err := json.Unmarshal([]byte(msg), &req)
+	for i := 0; i < ifaceType.Elem().NumMethod(); i++ {
 
-			if err != nil {
+		mtd, found := implType.MethodByName(ifaceType.Elem().Method(i).Name)
 
-				res.IsErr = true
-				res.ErrMsg = err.Error()
+		if found {
+			proxy(iface, obj, opt, mtd)
+		}
+	}
+
+	return nil
+}
+
+func proxy(iface interface{}, obj interface{}, opt Option, method reflect.Method) {
+
+	for i := 0; i < opt.NumWorker; i++ {
+
+		queue.Get(opt.Config).ReplyRaw(GetQueueName(iface, opt)+":"+method.Name, handleFunc(i, obj, method))
+	}
+}
+
+func handleFunc(workerNo int, obj interface{}, method reflect.Method) queue.QueueRawReqHandler {
+
+	return func(name string, msg []byte) []byte {
+
+		// decode request
+		inBuf := bytes.NewBuffer(msg)
+		dec := gob.NewDecoder(inBuf)
+
+		req := Request{}
+		err := dec.Decode(&req)
+
+		if err != nil {
+			fmt.Println("Unable to parse request :" + err.Error())
+			return response(errors.New("Unable to parse request :" + err.Error()))
+		}
+
+		args := make([]reflect.Value, method.Type.NumIn())
+		args[0] = reflect.ValueOf(obj)
+
+		for i, param := range req.Params {
+			args[i+1] = reflect.ValueOf(param)
+		}
+
+		retVal := method.Func.Call(args)
+		result := []interface{}{}
+
+		for _, elm := range retVal {
+
+			if elm.Interface() != nil && elm.Type().Name() == "error" {
+				result = append(result, StringError{Msg: elm.Interface().(error).Error()})
 			} else {
-
-				args := make([]reflect.Value, method.Type.NumIn())
-				args[0] = reflect.ValueOf(impl)
-
-				for i, param := range req.Params {
-
-					argType := method.Type.In(i + 1)
-
-					param, err = fixType(param, reflect.TypeOf(param), argType)
-
-					if err != nil {
-						res.IsErr = true
-						res.ErrMsg = fmt.Sprintf("Param %d : %s", i, err.Error())
-						break
-					}
-
-					paramType := reflect.TypeOf(param)
-
-					if !paramType.ConvertibleTo(argType) {
-						res.IsErr = true
-						res.ErrMsg = fmt.Sprintf("Param %d must type %s, got %s", i, argType.Name(), paramType.Name())
-						break
-					}
-
-					args[i+1] = reflect.ValueOf(param)
-				}
-
-				if !res.IsErr {
-					retVal := method.Func.Call(args)
-					res.Result = []interface{}{}
-
-					for _, elm := range retVal {
-
-						if elm.Interface() != nil {
-
-							res.Result = append(res.Result, elm.Interface())
-						} else {
-							res.Result = append(res.Result, elm.Interface())
-						}
-
-					}
-				}
+				result = append(result, elm.Interface())
 			}
+		}
 
-			byteRet, _ := json.Marshal(res)
-			return string(byteRet)
-		})
+		return response(nil, result...)
+	}
 }
 
-func fixType(param interface{}, paramType, argType reflect.Type) (interface{}, error) {
+func response(err error, resList ...interface{}) []byte {
 
-	// if got float64 convert to correct type
-	if paramType.Kind() == reflect.Float64 {
-
-		if argType.Kind() != reflect.Interface {
-			paramReal := param.(float64)
-
-			switch argType.Kind() {
-			case reflect.Int:
-				param = int(paramReal)
-			case reflect.Int8:
-				param = int8(paramReal)
-			case reflect.Int16:
-				param = int16(paramReal)
-			case reflect.Int32:
-				param = int32(paramReal)
-			case reflect.Int64:
-				param = int64(paramReal)
-			case reflect.Float32:
-				param = float32(paramReal)
-			case reflect.Float64:
-			default:
-				return nil, fmt.Errorf("Want %s, got %s", argType.Name(), paramType.Name())
-			}
-		}
-	} else if paramType.Kind() == reflect.Array {
-
-		ret := []interface{}{}
-		paramArr := param.([]interface{})
-
-		for _, elm := range paramArr {
-			retElm, err := fixType(elm, reflect.TypeOf(elm), paramType.Elem())
-
-			if err != nil {
-
-				return nil, err
-			}
-
-			ret = append(ret, retElm)
-		}
-
-		param = ret
-	} else if paramType.Kind() == reflect.Map {
-
-		ret := map[string]interface{}{}
-		paramMap := param.(map[string]interface{})
-
-		for key, elm := range paramMap {
-			retElm, err := fixType(elm, reflect.TypeOf(elm), paramType.Elem())
-
-			if err != nil {
-
-				return nil, err
-			}
-
-			ret[key] = retElm
-		}
-
-		param = ret
+	res := Response{
+		Results: resList,
 	}
 
-	return param, nil
-}
+	// encode response
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
 
-func ToStr(val interface{}) string {
-	ret, _ := val.(string)
-	return ret
-}
-
-func ToErr(val interface{}) error {
-
-	fmt.Printf("ERROR ::====>> %v", val)
-
-	valMap := val.(map[string]interface{})
-
-	for a, b := range valMap {
-
-		fmt.Print(a, "===>", b)
+	inErr := enc.Encode(res)
+	if inErr != nil {
+		fmt.Println("===>>> ERROR WHEN SERIALIZING response :", err)
 	}
 
-	if val == nil {
-		return nil
+	return buf.Bytes()
+}
+
+func Invoke(path string, config string, methodName string, params ...interface{}) ([]interface{}, error) {
+
+	req := Request{
+		MethodName: methodName,
+		Params:     params,
 	}
 
-	ret, _ := val.(string)
-	return errors.New(ret)
-}
+	// encode
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
 
-func ToBool(val interface{}) bool {
-	ret, _ := val.(bool)
-	return ret
-}
-
-func ToInt(val interface{}) int {
-	ret, _ := val.(float64)
-	return int(ret)
-}
-
-func ToInt16(val interface{}) int16 {
-	ret, _ := val.(float64)
-	return int16(ret)
-}
-
-func ToInt32(val interface{}) int32 {
-	ret, _ := val.(float64)
-	return int32(ret)
-}
-
-func ToInt64(val interface{}) int64 {
-	ret, _ := val.(float64)
-	return int64(ret)
-}
-
-func ToFloat32(val interface{}) float32 {
-	ret, _ := val.(float64)
-	return float32(ret)
-}
-
-func ToFloat64(val interface{}) float64 {
-	ret, _ := val.(float64)
-	return ret
-}
-
-func ToArr(val interface{}, elmType string) interface{} {
-
-	var ret interface{}
-
-	arr, ok := val.([]interface{})
-
-	if !ok {
-		return nil
+	err := enc.Encode(req)
+	if err != nil {
+		fmt.Println("===>>> ERROR WHEN SERIALIZING Request :", err)
+		return nil, errors.New("Unable to serialize request :" + err.Error())
 	}
 
-	switch elmType {
-	case "interface{}":
-		ret = []interface{}{}
+	ret, err := queue.Get(config).RequestRaw(path+":"+methodName, buf.Bytes())
 
-		for _, item := range arr {
-			ret = append(ret.([]interface{}), item)
-		}
-	case "string":
-		ret = []string{}
-
-		for _, item := range arr {
-			ret = append(ret.([]string), ToStr(item))
-		}
-	case "bool":
-		ret = []string{}
-
-		for _, item := range arr {
-			ret = append(ret.([]bool), ToBool(item))
-		}
-	case "int":
-		ret = []int{}
-
-		for _, item := range arr {
-			ret = append(ret.([]int), ToInt(item))
-		}
-	case "int16":
-		ret = []int16{}
-
-		for _, item := range arr {
-			ret = append(ret.([]int16), ToInt16(item))
-		}
-	case "int32":
-		ret = []int32{}
-
-		for _, item := range arr {
-			ret = append(ret.([]int32), ToInt32(item))
-		}
-	case "int64":
-		ret = []int64{}
-
-		for _, item := range arr {
-			ret = append(ret.([]int64), ToInt64(item))
-		}
-	case "float32":
-		ret = []float32{}
-
-		for _, item := range arr {
-			ret = append(ret.([]float32), ToFloat32(item))
-		}
-	case "float64":
-		ret = []float64{}
-
-		for _, item := range arr {
-			ret = append(ret.([]float64), ToFloat64(item))
-		}
+	if err != nil {
+		fmt.Println("Unable call queue request :" + err.Error())
+		return nil, errors.New("Unable call queue request :" + err.Error())
 	}
 
-	return ret
+	// decode
+	inBuf := bytes.NewBuffer(ret)
+	dec := gob.NewDecoder(inBuf)
+
+	res := Response{}
+	err = dec.Decode(&res)
+
+	if err != nil {
+		fmt.Println("Unable to parse result :" + err.Error())
+		return nil, errors.New("Unable to parse result :" + err.Error())
+	}
+
+	retList := []interface{}{}
+
+	for _, val := range res.Results {
+
+		valx, ok := val.(StringError)
+
+		if ok {
+			retList = append(retList, errors.New(valx.Msg))
+		} else {
+			retList = append(retList, val)
+		}
+	}
+	return retList, nil
 }
 
-func ToMap(val interface{}, keyType string, valType string) interface{} {
+func GetQueueName(iface interface{}, option Option) string {
 
-	var ret interface{}
+	ifaceType := reflect.TypeOf(iface)
 
-	mapObj, ok := val.(map[interface{}]interface{})
-
-	if !ok {
-		return nil
+	if ifaceType == nil {
+		return ""
 	}
 
-	switch keyType {
-	case "interface{}":
-		switch valType {
-		case "interface{}":
-			ret = map[interface{}]interface{}{}
-
-			for key, item := range mapObj {
-				ret.(map[interface{}]interface{})[key] = item
-			}
-		case "string":
-			ret = map[interface{}]string{}
-
-			for key, item := range mapObj {
-				ret.(map[interface{}]string)[key] = ToStr(item)
-			}
-		case "bool":
-			ret = map[interface{}]bool{}
-
-			for key, item := range mapObj {
-				ret.(map[interface{}]bool)[key] = ToBool(item)
-			}
-		case "int":
-			ret = map[interface{}]int{}
-
-			for key, item := range mapObj {
-				ret.(map[interface{}]int)[key] = ToInt(item)
-			}
-		case "int16":
-			ret = map[interface{}]int16{}
-
-			for key, item := range mapObj {
-				ret.(map[interface{}]int16)[key] = ToInt16(item)
-			}
-		case "int32":
-			ret = map[interface{}]int32{}
-
-			for key, item := range mapObj {
-				ret.(map[interface{}]int32)[key] = ToInt32(item)
-			}
-		case "int64":
-			ret = map[interface{}]int64{}
-
-			for key, item := range mapObj {
-				ret.(map[interface{}]int64)[key] = ToInt64(item)
-			}
-		case "float32":
-			ret = map[interface{}]float32{}
-
-			for key, item := range mapObj {
-				ret.(map[interface{}]float32)[key] = ToFloat32(item)
-			}
-		case "float64":
-			ret = map[interface{}]float64{}
-
-			for key, item := range mapObj {
-				ret.(map[interface{}]float64)[key] = ToFloat64(item)
-			}
-		}
-	case "string":
-	case "bool":
-	case "int":
-	case "int16":
-	case "int32":
-	case "int64":
-	case "float32":
-	case "float64":
+	if option.NameSpace == "" || option.NameSpace == "package" {
+		return "distobj/" + ifaceType.Elem().PkgPath() + "/" + ifaceType.Elem().Name()
+	} else if option.NameSpace == "global" {
+		return "distobj/" + ifaceType.Elem().Name()
 	}
 
-	return ret
+	return "distobj/" + option.NameSpace + "/" + ifaceType.Elem().Name()
+}
+
+func init() {
+
+	gob.Register(time.Time{})
+	gob.Register(errors.New(""))
+	gob.Register(Request{})
+	gob.Register(Response{})
+	gob.Register(StringError{})
+	gob.Register(map[string]string{})
+	gob.Register(map[string]int{})
+	gob.Register(map[string]int32{})
+	gob.Register(map[string]int64{})
+	gob.Register(map[string]float32{})
+	gob.Register(map[string]float64{})
 }

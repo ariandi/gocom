@@ -3,7 +3,7 @@ package secret
 import (
 	"fmt"
 
-	"github.com/ariandi/gocom/config"
+	"gitlab.axiatadigitallabs.com/adlindo/gocom/config"
 )
 
 var secretFuncMap map[string]SecretFunc = map[string]SecretFunc{}

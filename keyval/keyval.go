@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ariandi/gocom/config"
+	"gitlab.axiatadigitallabs.com/adlindo/gocom/config"
 )
 
 // --------------------------
@@ -16,6 +16,7 @@ type KeyValClient interface {
 	Get(key string) string
 	GetInt(key string) int
 	Del(key string) error
+	GetObject(key string, obj interface{}) error
 
 	Incr(key string) int64
 	Decr(key string) int64
@@ -44,6 +45,7 @@ type KeyValClient interface {
 	HScan(key, pattern string, from, count int) map[string]string
 
 	Expire(key string, ttl time.Duration) error
+	Exist(key string) bool
 }
 
 // --------------------------

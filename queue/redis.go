@@ -2,7 +2,9 @@ package queue
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/adjust/rmq/v5"
 	"github.com/redis/go-redis/v9"
@@ -50,7 +52,31 @@ func (o *RedisQueue) Publish(name string, payload interface{}) error {
 	return nil
 }
 
+func (o *RedisQueue) PublishRaw(name string, payload []byte) error {
+	return errors.New("Not implemented")
+}
+
 func (o *RedisQueue) Consume(name string, consumer QueueConsumerFunc) {
+}
+
+func (o *RedisQueue) ConsumeRaw(name string, consumer QueueRawConsumerFunc) {
+}
+
+func (o *RedisQueue) Request(subject string, msg interface{}, timeOut ...time.Duration) (string, error) {
+
+	return "", errors.New("Not implemented")
+}
+
+func (o *RedisQueue) Reply(subject string, eventHandler QueueReqHandler) {
+
+}
+
+func (o *RedisQueue) RequestRaw(subject string, msg []byte, timeOut ...time.Duration) ([]byte, error) {
+
+	return nil, errors.New("Not implemented")
+}
+
+func (o *RedisQueue) ReplyRaw(subject string, eventHandler QueueRawReqHandler) {
 
 }
 

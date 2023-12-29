@@ -2,6 +2,8 @@ package keyval
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -24,7 +26,16 @@ func (o *RedisKeyVal) Set(key string, val interface{}, ttl ...time.Duration) err
 		targetTTL = ttl[0]
 	}
 
-	return o.client.Set(o.ctx, key, val, targetTTL).Err()
+	switch val.(type) {
+	case string, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, []byte:
+		return o.client.Set(o.ctx, key, val, targetTTL).Err()
+	default:
+		b, err := json.Marshal(val)
+		if err != nil {
+			return err
+		}
+		return o.client.Set(o.ctx, key, b, targetTTL).Err()
+	}
 }
 
 func (o *RedisKeyVal) SetNX(key string, val interface{}, ttl ...time.Duration) bool {
@@ -91,6 +102,17 @@ func (o *RedisKeyVal) GetInt(key string) int {
 	}
 
 	return 0
+}
+
+func (o *RedisKeyVal) GetObject(key string, obj interface{}) error {
+	b, err := o.client.Get(o.ctx, key).Bytes()
+	if err != nil {
+		if err == redis.Nil {
+			return errors.New("[cache] not found")
+		}
+		return err
+	}
+	return json.Unmarshal(b, obj)
 }
 
 func (o *RedisKeyVal) Del(key string) error {
@@ -338,6 +360,10 @@ func (o *RedisKeyVal) HScan(key, pattern string, from, count int) map[string]str
 func (o *RedisKeyVal) Expire(key string, ttl time.Duration) error {
 
 	return o.client.Expire(o.ctx, key, ttl).Err()
+}
+
+func (o *RedisKeyVal) Exist(key string) bool {
+	return o.client.Exists(o.ctx, key).Val() > 0
 }
 
 // Init -------------------------------------------------------------------------------

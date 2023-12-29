@@ -3,8 +3,8 @@ package main
 import (
 	"sync"
 
-	"github.com/ariandi/gocom"
 	"github.com/oklog/ulid/v2"
+	"gitlab.axiatadigitallabs.com/adlindo/gocom"
 	"gorm.io/gorm"
 )
 

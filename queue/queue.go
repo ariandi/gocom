@@ -3,13 +3,20 @@ package queue
 import (
 	"fmt"
 	"sync"
+	"time"
 
-	"github.com/ariandi/gocom/config"
+	"gitlab.axiatadigitallabs.com/adlindo/gocom/config"
 )
 
 type QueueClient interface {
-	Publish(name string, payload interface{}) error
+	Publish(name string, msg interface{}) error
+	PublishRaw(name string, msg []byte) error
 	Consume(name string, consumer QueueConsumerFunc)
+	ConsumeRaw(name string, consumer QueueRawConsumerFunc)
+	Request(subject string, msg interface{}, timeOut ...time.Duration) (string, error)
+	RequestRaw(subject string, msg []byte, timeOut ...time.Duration) ([]byte, error)
+	Reply(subject string, eventHandler QueueReqHandler)
+	ReplyRaw(subject string, eventHandler QueueRawReqHandler)
 }
 
 var queueMap map[string]QueueClient = map[string]QueueClient{}
@@ -17,7 +24,10 @@ var queueMutex sync.Mutex
 var queueCreatorMap map[string]QueueCreatorFunc = map[string]QueueCreatorFunc{}
 
 type QueueCreatorFunc func(url string) (QueueClient, error)
-type QueueConsumerFunc func(name, payload string)
+type QueueConsumerFunc func(name, msg string)
+type QueueRawConsumerFunc func(name string, msg []byte)
+type QueueReqHandler func(name, msg string) string
+type QueueRawReqHandler func(name string, msg []byte) []byte
 
 func RegQueueCreator(typeName string, creator QueueCreatorFunc) {
 

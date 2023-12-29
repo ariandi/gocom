@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ariandi/gocom"
+	"gitlab.axiatadigitallabs.com/adlindo/gocom"
 )
 
 type QueueCtrl struct {
