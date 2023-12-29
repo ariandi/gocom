@@ -126,20 +126,20 @@ func setupLogs() {
 
 func reopen(fd int, filename string) {
 
-	if filename == "" {
-		return
-	}
+	//if filename == "" {
+	//	return
+	//}
+	//
+	//logFile, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	//
+	//if err != nil {
+	//	logrus.Println("Error in opening ", filename, err)
+	//	os.Exit(2)
+	//}
 
-	logFile, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-
-	if err != nil {
-		logrus.Println("Error in opening ", filename, err)
-		os.Exit(2)
-	}
-
-	if err = Dup(int(logFile.Fd()), fd); err != nil {
-		logrus.Println("Failed to dup", filename)
-	}
+	//if err = Dup(int(logFile.Fd()), fd); err != nil {
+	//	logrus.Println("Failed to dup", filename)
+	//}
 }
 
 type Fields logrus.Fields
