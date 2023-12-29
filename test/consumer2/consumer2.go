@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"gitlab.axiatadigitallabs.com/adlindo/gocom"
-	"gitlab.axiatadigitallabs.com/adlindo/gocom/pubsub"
+	"github.com/ariandi/gocom"
+	"github.com/ariandi/gocom/pubsub"
 )
 
 func main() {

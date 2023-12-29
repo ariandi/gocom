@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ariandi/gocom/constant"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
-	"gitlab.axiatadigitallabs.com/adlindo/gocom/constant"
 	// "go.opentelemetry.io/otel/trace"
 )
 

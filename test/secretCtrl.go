@@ -3,8 +3,8 @@ package main
 import (
 	"sync"
 
-	"gitlab.axiatadigitallabs.com/adlindo/gocom"
-	"gitlab.axiatadigitallabs.com/adlindo/gocom/secret"
+	"github.com/ariandi/gocom"
+	"github.com/ariandi/gocom/secret"
 )
 
 type SecretCtrl struct {

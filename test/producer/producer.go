@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"gitlab.axiatadigitallabs.com/adlindo/gocom/pubsub"
+	"github.com/ariandi/gocom/pubsub"
 )
 
 func main() {

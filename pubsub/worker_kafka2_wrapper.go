@@ -1,7 +1,7 @@
 package pubsub
 
 import (
-	"gitlab.axiatadigitallabs.com/adlindo/gocom/worker"
+	"github.com/ariandi/gocom/worker"
 	"time"
 )
 

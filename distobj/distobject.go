@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"time"
 
-	"gitlab.axiatadigitallabs.com/adlindo/gocom/queue"
+	"github.com/ariandi/gocom/queue"
 )
 
 type Request struct {

@@ -5,15 +5,20 @@ go 1.19
 require (
 	github.com/IBM/sarama v1.42.1
 	github.com/adjust/rmq/v5 v5.1.1
+	github.com/alitto/pond v1.8.3
 	github.com/ansrivas/fiberprometheus/v2 v2.6.0
-	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/gofiber/fiber/v2 v2.42.0
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/jinzhu/copier v0.3.5
 	github.com/nats-io/nats.go v1.30.2
 	github.com/oklog/ulid/v2 v2.1.0
+	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.0.2
+	github.com/satori/go.uuid v1.2.0
+	github.com/segmentio/kafka-go v0.4.47
+	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/viper v1.15.0
+	github.com/xuri/excelize/v2 v2.8.0
 	go.uber.org/zap v1.24.0
 	gorm.io/driver/postgres v1.4.7
 )
@@ -46,10 +51,12 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/compress v1.17.0 // indirect
+	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/nats-io/nats-server/v2 v2.10.2 // indirect
 	github.com/nats-io/nkeys v0.4.5 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
@@ -61,7 +68,10 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
+	github.com/richardlehane/mscfb v1.0.4 // indirect
+	github.com/richardlehane/msoleps v1.0.3 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/savsgio/dictpool v0.0.0-20221023140959-7bf2e61cea94 // indirect
 	github.com/savsgio/gotils v0.0.0-20220530130905-52f3993e8d6d // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
@@ -69,6 +79,8 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.44.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
+	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect
+	github.com/xuri/nfp v0.0.0-20230819163627-dc951e3ffe1a // indirect
 	go.opentelemetry.io/otel v0.13.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect

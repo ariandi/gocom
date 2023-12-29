@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.axiatadigitallabs.com/adlindo/gocom/config"
+	"github.com/ariandi/gocom/config"
 )
 
 var pubSubMap map[string]PubSubClient = map[string]PubSubClient{}

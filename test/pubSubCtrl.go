@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"gitlab.axiatadigitallabs.com/adlindo/gocom"
+	"github.com/ariandi/gocom"
 )
 
 type PubSubCtrl struct {

@@ -3,8 +3,8 @@ package distobj
 import (
 	"sync"
 
-	"gitlab.axiatadigitallabs.com/adlindo/gocom"
-	"gitlab.axiatadigitallabs.com/adlindo/gocom/distobj"
+	"github.com/ariandi/gocom"
+	"github.com/ariandi/gocom/distobj"
 )
 
 type DistObjCtrl struct {

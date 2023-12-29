@@ -2,7 +2,7 @@ package worker
 
 import (
 	"github.com/alitto/pond"
-	"gitlab.axiatadigitallabs.com/adlindo/gocom/config"
+	"github.com/ariandi/gocom/config"
 	"time"
 )
 

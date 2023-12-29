@@ -3,8 +3,6 @@
 
 package logger
 
-import "syscall"
-
-func Dup(from, to int) error {
-	return syscall.Dup2(from, to)
-}
+//func Dup(from, to int) error {
+//	return syscall.Dup2(from, to)
+//}
