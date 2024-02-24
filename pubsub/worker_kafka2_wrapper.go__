@@ -1,0 +1,65 @@
+//package pubsub
+//
+//import (
+//	"github.com/ariandi/gocom/worker"
+//	"time"
+//)
+//
+//type Kafka2WorkerClient struct {
+//	pubSubClient PubSubClient
+//	workerClient worker.Worker
+//}
+//
+//func (k Kafka2WorkerClient) Publish(subject string, msg interface{}) error {
+//	return k.pubSubClient.Publish(subject, msg)
+//}
+//
+//func (k Kafka2WorkerClient) Request(subject string, msg interface{}, timeOut ...time.Duration) (string, error) {
+//	return k.pubSubClient.Request(subject, msg, timeOut...)
+//}
+//
+//func (k Kafka2WorkerClient) Subscribe(subject string, eventHandler PubSubEventHandler) {
+//	k.pubSubClient.Subscribe(subject, func(name string, msg string) {
+//		k.workerClient.Submit(func() {
+//			eventHandler(name, msg)
+//		})
+//	})
+//}
+//
+//func (k Kafka2WorkerClient) RequestSubscribe(subject string, eventHandler PubSubReqEventHandler) {
+//	k.pubSubClient.RequestSubscribe(subject, func(name string, msg string) string {
+//		var ret string
+//		k.workerClient.SubmitAndWait(func() {
+//			ret = eventHandler(name, msg)
+//		})
+//		return ret
+//	})
+//}
+//
+//func (k Kafka2WorkerClient) QueueSubscribe(subject string, queue string, eventHandler PubSubEventHandler) {
+//	k.pubSubClient.QueueSubscribe(subject, queue, func(name string, msg string) {
+//		k.workerClient.Submit(func() {
+//			eventHandler(name, msg)
+//		})
+//	})
+//}
+//
+//func init() {
+//	RegPubSubCreator("kafka2wrapper", func(connString string) (PubSubClient, error) {
+//		kafka2, err := NewKafka2(connString)
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		return NewKafka2Worker(kafka2)
+//	})
+//}
+//
+//func NewKafka2Worker(kafka2 PubSubClient) (PubSubClient, error) {
+//	workerClient := worker.Get()
+//
+//	return &Kafka2WorkerClient{
+//		pubSubClient: kafka2,
+//		workerClient: workerClient,
+//	}, nil
+//}
