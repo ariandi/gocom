@@ -1,6 +1,7 @@
 package gocom
 
 import (
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -178,6 +179,13 @@ func (o *FiberApp) Start() {
 	prometheus := fiberprometheus.New("service")
 	prometheus.RegisterAt(o.app, "/metrics")
 	o.app.Use(prometheus.Middleware)
+
+	o.app.Use(cors.New(cors.Config{
+		AllowHeaders:     "Origin,Content-Type,Accept,Content-Length,Accept-Language,Accept-Encoding,Connection,Access-Control-Allow-Origin",
+		AllowOrigins:     "*",
+		AllowCredentials: true,
+		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+	}))
 
 	o.app.Listen(totalAddr)
 }
