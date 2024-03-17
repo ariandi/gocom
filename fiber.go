@@ -180,13 +180,6 @@ func (o *FiberApp) Start() {
 	prometheus.RegisterAt(o.app, "/metrics")
 	o.app.Use(prometheus.Middleware)
 
-	o.app.Use(cors.New(cors.Config{
-		AllowHeaders:     "Origin,Content-Type,Accept,Content-Length,Accept-Language,Accept-Encoding,Connection,Access-Control-Allow-Origin",
-		AllowOrigins:     "*",
-		AllowCredentials: true,
-		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
-	}))
-
 	o.app.Listen(totalAddr)
 }
 
@@ -195,6 +188,13 @@ func init() {
 	RegAppCreator("fiber", func() App {
 		ret := &FiberApp{}
 		ret.app = fiber.New()
+
+		ret.app.Use(cors.New(cors.Config{
+			AllowHeaders:     "Origin,Content-Type,Accept,Content-Length,Accept-Language,Accept-Encoding,Connection,Access-Control-Allow-Origin",
+			AllowOrigins:     "*",
+			AllowCredentials: true,
+			AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+		}))
 
 		return ret
 	})
