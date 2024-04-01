@@ -190,7 +190,7 @@ func init() {
 		ret.app = fiber.New()
 
 		ret.app.Use(cors.New(cors.Config{
-			AllowHeaders:     "Origin,Content-Type,Accept,Content-Length,Accept-Language,Accept-Encoding,Connection,Access-Control-Allow-Origin",
+			AllowHeaders:     "Authorization,Origin,Content-Type,Accept,Content-Length,Accept-Language,Accept-Encoding,Connection,Access-Control-Allow-Origin",
 			AllowOrigins:     "*",
 			AllowCredentials: true,
 			AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
