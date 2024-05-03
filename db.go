@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	loggerGrom "gorm.io/gorm/logger"
 )
 
 var dbMap map[string]*gorm.DB = map[string]*gorm.DB{}
@@ -94,6 +95,6 @@ func init() {
 
 	RegDBCreator("postgresql", func(dsn string) (*gorm.DB, error) {
 
-		return gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		return gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: loggerGrom.Default.LogMode(loggerGrom.Silent)})
 	})
 }
