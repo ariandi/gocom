@@ -170,6 +170,21 @@ func GetLevel() string {
 func Request(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
+
+		reqID := r.Header.Get(constant.RequestIDHeader.String())
+		if reqID == "" {
+			reqID = uuid.NewV4().String()
+		}
+
+		ctx := context.WithValue(r.Context(), constant.RequestIDHeader, reqID)
+		r = r.WithContext(ctx)
+
+		logger := GetLogger(ctx, "middleware", "Request")
+		logger = logger.WithField("request_id", reqID)
+		logger.Infof("Incoming request: %s %s", r.Method, r.RequestURI)
+
+		w.Header().Set(constant.RequestIDHeader.String(), reqID)
+
 		next.ServeHTTP(w, r)
 		Infof(logFormat, t, r.Method, r.RequestURI, time.Since(t))
 	})
