@@ -3,6 +3,7 @@ package gocom
 import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"io/ioutil"
+	"mime/multipart"
 	"os"
 	"strconv"
 
@@ -41,6 +42,10 @@ func (o *FiberContext) Query(key string, defaultVal ...string) string {
 func (o *FiberContext) FormValue(key string, defaultVal ...string) string {
 
 	return o.ctx.FormValue(key, defaultVal...)
+}
+
+func (o *FiberContext) FormFile(key string) (*multipart.FileHeader, error) {
+	return o.ctx.FormFile(key)
 }
 
 func (o *FiberContext) Bind(target interface{}) error {

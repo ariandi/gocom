@@ -1,6 +1,7 @@
 package gocom
 
 import (
+	"mime/multipart"
 	"sync"
 
 	"github.com/ariandi/gocom/config"
@@ -36,6 +37,7 @@ type Context interface {
 	Param(key string, defaulVal ...string) string
 	Query(key string, defaulVal ...string) string
 	FormValue(key string, defaulVal ...string) string
+	FormFile(key string) (*multipart.FileHeader, error)
 	Bind(target interface{}) error
 	SetHeader(key string, value string)
 	GetHeader(key string) string
