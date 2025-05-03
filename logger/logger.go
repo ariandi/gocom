@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
-	// "go.opentelemetry.io/otel/trace"
 )
 
 const logFormat = `date=%s, method=%s, url=%s,  response_time=%s`
@@ -103,8 +102,17 @@ func (hook *WriterHook) Levels() []logrus.Level {
 }
 
 // setupLogs adds hooks to send logs to different destinations depending on level
-func setupLogs() {
+func setupLogs(logFile ...string) {
 	logrus.SetOutput(ioutil.Discard) // Send all logs to nowhere by default
+
+	filename := "./logs/app.log"
+	if len(logFile) > 0 && logFile[0] != "" {
+		filename = logFile[0]
+	}
+	writer, err := NewDailyFileWriter(filename)
+	if err != nil {
+		logrus.Fatalf("failed to create daily log writer: %v", err)
+	}
 
 	logrus.AddHook(&WriterHook{ // Send logs with level higher than warning to stderr
 		Writer: os.Stderr,
@@ -121,6 +129,11 @@ func setupLogs() {
 			logrus.InfoLevel,
 			logrus.DebugLevel,
 		},
+	})
+
+	logrus.AddHook(&WriterHook{
+		Writer:    writer,
+		LogLevels: logrus.AllLevels,
 	})
 }
 
