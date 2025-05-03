@@ -75,7 +75,7 @@ func LogInit() {
 	reopen(1, stdoutLog)
 	reopen(2, stderrLog)
 
-	setupLogs()
+	SetupLogs()
 
 }
 
@@ -101,8 +101,8 @@ func (hook *WriterHook) Levels() []logrus.Level {
 	return hook.LogLevels
 }
 
-// setupLogs adds hooks to send logs to different destinations depending on level
-func setupLogs(logFile ...string) {
+// SetupLogs adds hooks to send logs to different destinations depending on level
+func SetupLogs(logFile ...string) {
 	logrus.SetOutput(ioutil.Discard) // Send all logs to nowhere by default
 
 	filename := "./logs/app.log"
