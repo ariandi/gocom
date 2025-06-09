@@ -51,6 +51,9 @@ type Context interface {
 	SendResult(data interface{}) error
 	SendError(err *CodedError) error
 	Next() error
+
+	GetFullURL() string
+	GetRequestHeaders() map[string]string
 }
 
 type Result struct {

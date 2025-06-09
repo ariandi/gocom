@@ -24,6 +24,18 @@ func (o *FiberContext) Status(code int) Context {
 	return o
 }
 
+func (o *FiberContext) GetFullURL() string {
+	return o.ctx.OriginalURL()
+}
+
+func (o *FiberContext) GetRequestHeaders() map[string]string {
+	headers := make(map[string]string)
+	o.ctx.Request().Header.VisitAll(func(key, value []byte) {
+		headers[string(key)] = string(value)
+	})
+	return headers
+}
+
 func (o *FiberContext) Body() []byte {
 
 	return o.ctx.Body()
