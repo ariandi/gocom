@@ -1,6 +1,7 @@
 package gocom
 
 import (
+	"fmt"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"io/ioutil"
 	"mime/multipart"
@@ -25,7 +26,19 @@ func (o *FiberContext) Status(code int) Context {
 }
 
 func (o *FiberContext) GetFullURL() string {
-	return o.ctx.OriginalURL()
+
+	ctx := o.ctx
+
+	protocol := "http"
+	if ctx.Secure() {
+		protocol = "https"
+	}
+
+	host := string(ctx.Request().Host())
+
+	path := ctx.OriginalURL()
+
+	return fmt.Sprintf("%s://%s%s", protocol, host, path)
 }
 
 func (o *FiberContext) GetRequestHeaders() map[string]string {
