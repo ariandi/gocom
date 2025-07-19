@@ -221,7 +221,7 @@ func init() {
 
 		ret.app.Use(cors.New(cors.Config{
 			AllowHeaders:     "*",
-			AllowOrigins:     "*",
+			AllowOrigins:     config.Get("app.http.cors", "http://localhost:3000"),
 			AllowCredentials: true,
 			AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
 		}))
