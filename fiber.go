@@ -219,6 +219,7 @@ func init() {
 		ret := &FiberApp{}
 		ret.app = fiber.New()
 
+		// deploy here
 		ret.app.Use(cors.New(cors.Config{
 			AllowHeaders:     "*",
 			AllowOrigins:     config.Get("app.http.cors", "http://localhost:3000"),
