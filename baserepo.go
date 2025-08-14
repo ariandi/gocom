@@ -8,9 +8,8 @@ type BaseRepo struct {
 	ConnName string
 }
 
-func (o *BaseRepo) AutoMigrate(value interface{}) error {
-
-	return DB(o.ConnName).AutoMigrate(value)
+func (o *BaseRepo) AutoMigrate(value ...interface{}) error {
+	return DB(o.ConnName).AutoMigrate(value...)
 }
 
 func (o *BaseRepo) Create(value interface{}) *gorm.DB {
