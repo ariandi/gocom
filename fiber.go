@@ -132,15 +132,25 @@ func (o *FiberContext) SendFile(filePath string, fileName string) error {
 
 func (o *FiberContext) SendFileBytes(data []byte, fileName string) error {
 
-	file, err := ioutil.TempFile("dir", "sendFile*_"+fileName)
+	file, err := ioutil.TempFile("", "sendFile*_"+fileName)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(file.Name())
+	defer file.Close()
 
-	if err == nil {
-		defer os.Remove(file.Name())
-
-		o.ctx.SendFile(file.Name())
+	// Write data to temp file
+	if _, err := file.Write(data); err != nil {
+		return err
 	}
 
-	return err
+	// Close file before sending to ensure data is flushed
+	if err := file.Close(); err != nil {
+		return err
+	}
+
+	// Send file
+	return o.ctx.SendFile(file.Name())
 }
 
 func (o *FiberContext) Next() error {
