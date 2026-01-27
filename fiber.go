@@ -2,11 +2,13 @@ package gocom
 
 import (
 	"fmt"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	"io/ioutil"
 	"mime/multipart"
 	"os"
 	"strconv"
+	"time"
+
+	"github.com/gofiber/fiber/v2/middleware/cors"
 
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/ariandi/gocom/config"
@@ -227,7 +229,12 @@ func init() {
 
 	RegAppCreator("fiber", func() App {
 		ret := &FiberApp{}
-		ret.app = fiber.New()
+		ret.app = fiber.New(fiber.Config{
+			BodyLimit:    100 * 1024 * 1024, // 100MB
+			ReadTimeout:  time.Second * 300, // 5 menit
+			WriteTimeout: time.Second * 120, // 2 menit
+			IdleTimeout:  time.Second * 120, // 2 menit
+		})
 
 		// deploy here
 		ret.app.Use(cors.New(cors.Config{
