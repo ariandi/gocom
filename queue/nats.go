@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ariandi/gocom/internal/natsconn"
 	"github.com/nats-io/nats.go"
 )
 
@@ -183,18 +184,26 @@ func (o *NatsQueueClient) ReplyRaw(subject string, eventHandler QueueRawReqHandl
 	}
 }
 
+// appNatsConfig supplies the optional app.nats.* tuning to the registered creator.
+// A variable so tests can substitute it: the config package only reads files at startup.
+var appNatsConfig = natsconn.ConfigFromApp
+
 func init() {
 	RegQueueCreator("nats", func(url string) (QueueClient, error) {
-
-		ret := &NatsQueueClient{}
-
-		var err error
-		ret.conn, err = nats.Connect(url)
-
-		if err != nil {
-			return nil, err
-		}
-
-		return ret, nil
+		return newNatsQueueClient(url, appNatsConfig())
 	})
+}
+
+// newNatsQueueClient returns a nil interface (not a typed nil) on failure, so
+// `if queue.Get() == nil` startup guards in callers keep working.
+//
+// A bare nats.Connect used to live here: after ~2 minutes of broker downtime it
+// left the client CLOSED for good, while Get() kept handing it out. See natsconn.
+func newNatsQueueClient(url string, cfg natsconn.Config) (QueueClient, error) {
+	conn, err := natsconn.Connect("queue", url, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &NatsQueueClient{conn: conn}, nil
 }

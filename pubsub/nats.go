@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ariandi/gocom/internal/natsconn"
 	"github.com/nats-io/nats.go"
 )
 
@@ -136,17 +137,26 @@ func (o *NatsPubSubClient) QueueSubscribe(subject string, queue string, eventHan
 	}
 }
 
+// appNatsConfig supplies the optional app.nats.* tuning to the registered creator.
+// A variable so tests can substitute it: the config package only reads files at startup.
+var appNatsConfig = natsconn.ConfigFromApp
+
 func init() {
 	RegPubSubCreator("nats", func(connString string) (PubSubClient, error) {
-		ret := &NatsPubSubClient{}
-
-		var err error
-		ret.conn, err = nats.Connect(connString)
-
-		if err != nil {
-			return nil, err
-		}
-
-		return ret, nil
+		return newNatsPubSubClient(connString, appNatsConfig())
 	})
+}
+
+// newNatsPubSubClient returns a nil interface (not a typed nil) on failure, so
+// `if pubsub.Get() == nil` startup guards in callers keep working.
+//
+// A bare nats.Connect used to live here: after ~2 minutes of broker downtime it
+// left the client CLOSED for good, while Get() kept handing it out. See natsconn.
+func newNatsPubSubClient(connString string, cfg natsconn.Config) (PubSubClient, error) {
+	conn, err := natsconn.Connect("pubsub", connString, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &NatsPubSubClient{conn: conn}, nil
 }
